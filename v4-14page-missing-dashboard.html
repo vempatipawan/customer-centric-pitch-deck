@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UnitPay — The CFO's Missing Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: { 'brand-teal':'#003024','brand-lime':'#a4ea49','brand-mint':'#e1ead3','brand-black':'#0a0a0a','signal-red':'#ff3b3b','signal-amber':'#f5a623','card-dark':'#111111','card-border':'#1f1f1f' },
+    fontFamily: { 'inter':['Inter','system-ui','sans-serif'],'mono':['JetBrains Mono','monospace'] }
+  }}
+}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-snap-type:y mandatory;font-size:14px}
+@media(min-width:768px){html{font-size:15px}}
+@media(min-width:1280px){html{font-size:16px}}
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;color:#fff;overflow-x:hidden}
+.slide{min-height:100vh;scroll-snap-align:start;position:relative;overflow:hidden}
+.grain::before{content:'';position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:256px;pointer-events:none;z-index:1}
+.slide>*{position:relative;z-index:2}
+.lime-glow{text-shadow:0 0 30px rgba(164,234,73,.12)}
+.red-glow{text-shadow:0 0 40px rgba(255,59,59,.3)}
+@keyframes pulseGlow{0%,100%{box-shadow:0 4px 24px rgba(164,234,73,.3)}50%{box-shadow:0 8px 40px rgba(164,234,73,.5)}}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes breathe{0%,100%{transform:perspective(1000px) rotateX(3deg) scale(1)}50%{transform:perspective(1000px) rotateX(3deg) scale(1.01)}}
+.anim{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
+.anim.v{opacity:1;transform:translateY(0)}
+.d1{transition-delay:.15s}.d2{transition-delay:.3s}.d3{transition-delay:.45s}.d4{transition-delay:.6s}.d5{transition-delay:.75s}.d6{transition-delay:.9s}
+.progress-bar{position:fixed;bottom:0;left:0;height:2px;background:#a4ea49;z-index:100;transition:width .3s ease}
+.nav-dots{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:8px}
+.nav-dot{width:8px;height:8px;border-radius:50%;border:1.5px solid #6b7280;background:transparent;cursor:pointer;transition:all .3s ease}
+.nav-dot.active{background:#a4ea49;border-color:#a4ea49;transform:scale(1.3)}
+.blurred-db{filter:blur(8px) brightness(.6);opacity:.85;transform:perspective(1000px) rotateX(3deg);animation:breathe 4s ease-in-out infinite}
+.blurred-db-overlay{position:absolute;inset:0;background:rgba(0,48,36,.2);border-radius:16px;pointer-events:none}
+.sticky-note{position:absolute;right:12px;top:40%;width:90px;padding:8px;background:#fef08a;transform:rotate(5deg);box-shadow:2px 3px 8px rgba(0,0,0,.3);z-index:10}
+@media(min-width:768px){.sticky-note{right:24px;width:110px;padding:10px}}
+::-webkit-scrollbar{width:0}
+.margin-fill{transition:width 1.5s ease-out}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="pBar"></div>
+<nav class="nav-dots hidden md:flex" id="navDots"></nav>
+
+<!-- S1 HOOK -->
+<section class="slide grain flex flex-col items-center justify-center px-6 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%);background-image:radial-gradient(ellipse at center,rgba(0,48,36,.08) 0%,transparent 60%)">
+<div class="anim mb-8 md:mb-10"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-brand-lime flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-brand-teal"></div></div><span class="text-white font-bold text-xl tracking-tight">UnitPay</span></div></div>
+<div class="text-center max-w-4xl anim d1">
+<p class="font-bold text-xl md:text-[40px] text-white leading-tight">What if you could see the margin on</p>
+<p class="font-extrabold text-2xl md:text-[44px] text-brand-lime leading-tight mt-2 md:mt-3 lime-glow">every customer, every feature,</p>
+<p class="font-extrabold text-2xl md:text-[44px] text-brand-lime leading-tight mt-1 lime-glow">every API call — right now?</p>
+</div>
+<p class="text-white/60 text-sm md:text-xl mt-4 text-center max-w-2xl anim d2">Not in a quarterly report. Not in a spreadsheet someone updates on Fridays. <span class="text-brand-lime">Right now.</span></p>
+<div class="mt-8 md:mt-10 w-full max-w-4xl anim d3"><div class="relative"><div class="blurred-db bg-card-dark rounded-2xl border border-card-border overflow-hidden" style="box-shadow:0 30px 80px rgba(0,0,0,.6)">
+<div class="flex items-center justify-between px-4 md:px-6 py-3 bg-brand-black border-b border-card-border"><span class="text-xs md:text-sm font-medium text-white">Revenue Overview</span><div class="flex items-center gap-2"><span class="text-xs text-white/60">Last 30 days</span><span class="w-2 h-2 rounded-full bg-brand-lime"></span><span class="text-[10px] font-bold text-brand-lime">LIVE</span></div></div>
+<div class="grid grid-cols-4 gap-2 p-3 md:p-4">
+<div class="bg-brand-black rounded-lg p-2 md:p-3"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-wider font-medium">MRR</div><div class="text-lg md:text-2xl font-extrabold text-white mt-1">$84K</div><div class="text-[9px] md:text-[10px] text-brand-lime mt-0.5">↑ 12%</div></div>
+<div class="bg-brand-black rounded-lg p-2 md:p-3"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-wider font-medium">NET MARGIN</div><div class="text-lg md:text-2xl font-extrabold text-brand-lime mt-1">58.7%</div><div class="text-[9px] md:text-[10px] text-brand-lime mt-0.5">↑ 3.2pts</div></div>
+<div class="bg-brand-black rounded-lg p-2 md:p-3"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-wider font-medium">DSO</div><div class="text-lg md:text-2xl font-extrabold text-white mt-1">28d</div><div class="text-[9px] md:text-[10px] text-brand-lime mt-0.5">↓ 4 days</div></div>
+<div class="bg-brand-black rounded-lg p-2 md:p-3"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-wider font-medium">AT-RISK</div><div class="text-lg md:text-2xl font-extrabold text-signal-amber mt-1">2</div><div class="text-[9px] md:text-[10px] text-white/60 mt-0.5">DataFlow, AgentLab</div></div>
+</div>
+<div class="grid grid-cols-2 gap-3 px-3 md:px-4 pb-4">
+<div class="bg-brand-black/50 rounded-lg p-3 h-32 md:h-40"><div class="text-[9px] md:text-[11px] text-white/60 mb-2">Revenue vs Cost</div><svg viewBox="0 0 280 100" class="w-full h-full"><line x1="0" y1="90" x2="280" y2="90" stroke="#1f1f1f" stroke-width=".5"/><line x1="0" y1="60" x2="280" y2="60" stroke="#1f1f1f" stroke-width=".5"/><line x1="0" y1="30" x2="280" y2="30" stroke="#1f1f1f" stroke-width=".5"/><path d="M10,75 L56,68 L112,60 L168,50 L224,38 L270,25" fill="none" stroke="#a4ea49" stroke-width="2"/><path d="M10,75 L56,68 L112,60 L168,50 L224,38 L270,25 L270,90 L10,90Z" fill="rgba(164,234,73,.08)"/><path d="M10,85 L56,84 L112,82 L168,80 L224,77 L270,74" fill="none" stroke="#ff3b3b" stroke-width="2"/></svg></div>
+<div class="bg-brand-black/50 rounded-lg p-3"><div class="text-[9px] md:text-[11px] text-white/60 mb-2">Customer Margins</div><div class="space-y-1.5"><div class="flex justify-between text-[10px]"><span class="text-white/70">Acme AI</span><span class="text-brand-lime">+65%</span></div><div class="flex justify-between text-[10px]"><span class="text-white/70">BotCorp</span><span class="text-brand-lime">+62%</span></div><div class="flex justify-between text-[10px]"><span class="text-white/70">DataFlow</span><span class="text-signal-amber">+20%</span></div><div class="flex justify-between text-[10px]"><span class="text-white/70">NeuralOps</span><span class="text-brand-lime">+70%</span></div><div class="flex justify-between text-[10px]"><span class="text-white/70">AgentLab</span><span class="text-signal-red">+15%</span></div></div></div>
+</div></div><div class="blurred-db-overlay"></div></div></div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">01 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S2 SPREADSHEET HELL -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><p class="font-bold text-2xl md:text-[44px] leading-tight" style="color:#6b7280">Instead, this is what most CFOs see.</p></div>
+<div class="mt-8 md:mt-10 w-full max-w-4xl anim d1"><div class="relative bg-white rounded-lg overflow-hidden" style="box-shadow:0 12px 40px rgba(0,0,0,.3)">
+<div class="bg-[#f3f4f6] px-3 md:px-4 py-2 flex items-center gap-2 border-b border-[#d1d5db]"><div class="flex gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-[#ef4444]/60"></div><div class="w-2.5 h-2.5 rounded-full bg-[#f59e0b]/60"></div><div class="w-2.5 h-2.5 rounded-full bg-[#22c55e]/60"></div></div><div class="bg-white rounded px-3 py-1 text-[10px] md:text-[11px] text-[#6b7280] border border-[#e5e7eb] ml-2 truncate">Q4-Margins-DRAFT-v3-FINAL-FINAL.xlsx</div></div>
+<div class="relative overflow-x-auto"><table class="w-full text-[10px] md:text-[13px]" style="border-collapse:collapse">
+<thead><tr class="bg-[#f9fafb] border-b border-[#e5e7eb]"><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-left w-8 border-r border-[#e5e7eb]"></th><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-center border-r border-[#e5e7eb]">A</th><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-center border-r border-[#e5e7eb]">B</th><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-center border-r border-[#e5e7eb]">C</th><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-center border-r border-[#e5e7eb]">D</th><th class="py-1.5 px-2 md:px-3 text-[#9ca3af] font-medium text-center">E</th></tr></thead>
+<tbody>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">1</td><td colspan="3" class="py-1.5 px-2 text-[#111827] font-bold">Q4 Margins</td><td class="py-1.5 px-2 text-[#ef4444] font-bold uppercase">DRAFT</td><td></td></tr>
+<tr class="border-b border-[#e5e7eb] bg-[#f9fafb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">2</td><td class="py-1.5 px-2 text-[#374151] font-semibold">Customer</td><td class="py-1.5 px-2 text-[#374151] font-semibold">Revenue</td><td class="py-1.5 px-2 text-[#374151] font-semibold">Est Cost</td><td class="py-1.5 px-2 text-[#374151] font-semibold">Margin?</td><td class="py-1.5 px-2 text-[#374151] font-semibold">Notes</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">3</td><td class="py-1.5 px-2 text-[#111827]">Acme AI</td><td class="py-1.5 px-2 text-[#111827]">$12,400</td><td class="py-1.5 px-2 text-[#6b7280]">~$5,000?</td><td class="py-1.5 px-2 text-[#6b7280] font-mono text-[9px] md:text-[11px]">=C3/B3</td><td class="py-1.5 px-2 text-[#9ca3af] italic text-[9px] md:text-[11px]">ask eng</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">4</td><td class="py-1.5 px-2 text-[#111827]">BotCorp</td><td class="py-1.5 px-2 text-[#111827]">$8,200</td><td class="py-1.5 px-2 text-[#ef4444] font-bold" style="background:#fef2f2">#REF!</td><td class="py-1.5 px-2 text-[#ef4444] font-bold" style="background:#fef2f2">#REF!</td><td></td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">5</td><td class="py-1.5 px-2 text-[#111827]">DataFlow</td><td class="py-1.5 px-2 text-[#111827]" style="background:#fef9c3">$3,100</td><td class="py-1.5 px-2 text-[#111827]">$2,480</td><td class="py-1.5 px-2 text-[#111827]" style="background:#dcfce7">20%</td><td class="py-1.5 px-2 text-[#ef4444] font-bold">LOW!!</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">6</td><td class="py-1.5 px-2 text-[#111827]">NeuralOps</td><td class="py-1.5 px-2 text-[#111827]">$22,800</td><td></td><td></td><td class="py-1.5 px-2 text-[#9ca3af] italic text-[9px] md:text-[11px]">no data</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">7</td><td class="py-1.5 px-2 text-[#111827]">AgentLab</td><td class="py-1.5 px-2 text-[#111827]">$5,600</td><td class="py-1.5 px-2 text-[#6b7280]">~$4,500?</td><td class="py-1.5 px-2 text-[#6b7280] font-mono text-[9px] md:text-[11px]">=C7/B7</td><td class="py-1.5 px-2 text-[#9ca3af] italic text-[9px] md:text-[11px]">rough est</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">8</td><td colspan="5"></td></tr>
+<tr class="bg-[#f9fafb] border-t-2 border-[#d1d5db]"><td class="py-1.5 px-2 text-[#9ca3af] border-r border-[#e5e7eb] text-center">9</td><td class="py-1.5 px-2 text-[#111827] font-bold">TOTAL</td><td class="py-1.5 px-2 text-[#111827] font-bold">$52,100</td><td class="py-1.5 px-2 text-[#ef4444] font-bold">???</td><td class="py-1.5 px-2 text-[#ef4444] font-bold">???</td><td></td></tr>
+</tbody></table>
+<div class="sticky-note"><p class="italic text-[9px] md:text-[11px] text-[#333] leading-tight">ask engineering for real numbers</p></div>
+</div></div></div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-8 w-full max-w-3xl">
+<div class="bg-card-dark border border-card-border rounded-xl px-4 py-3 flex items-center gap-3 anim d2"><svg class="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375"/></svg><div><p class="text-sm font-medium text-white">Revenue data</p><p class="text-xs text-white/60">in Stripe</p></div></div>
+<div class="bg-card-dark border border-card-border rounded-xl px-4 py-3 flex items-center gap-3 anim d3"><svg class="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3"/></svg><div><p class="text-sm font-medium text-white">Cost data</p><p class="text-xs text-white/60">in AWS</p></div></div>
+<div class="bg-card-dark border border-card-border rounded-xl px-4 py-3 flex items-center gap-3 anim d4"><svg class="w-5 h-5 text-signal-red flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/></svg><div><p class="text-sm font-medium text-white">Margin data</p><p class="text-xs font-bold text-signal-red">...nowhere</p></div></div>
+</div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">02 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S3 THREE SCENARIOS -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#003024 0%,#001a14 50%,#002a1f 100%)">
+<div class="text-center max-w-4xl anim"><p class="font-bold text-xl md:text-[48px] text-white leading-tight">When margins are <span class="text-signal-red red-glow">invisible,</span></p><p class="font-bold text-xl md:text-[48px] text-white leading-tight mt-1 md:mt-2">bad decisions are <span class="text-signal-red red-glow">inevitable.</span></p></div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 mt-10 md:mt-12 w-full max-w-5xl">
+<div class="rounded-2xl p-5 md:p-7 anim d1" style="background:#002a1f;border:1px solid rgba(255,59,59,.15)"><div class="w-10 h-10 rounded-full bg-signal-red/10 flex items-center justify-center mb-4"><svg class="w-5 h-5 text-signal-red" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><p class="font-bold text-base md:text-lg text-white leading-snug">Renewed a customer at $8K/mo</p><p class="font-bold text-base md:text-lg text-signal-red leading-snug">who was costing you $7.2K</p><div class="border-t border-card-border my-4"></div><p class="text-sm font-medium text-signal-red">NET: $800/month</p><p class="text-xs text-white/60 mt-1">(10% margin on a $96K/yr contract)</p><div class="mt-4 w-full h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div class="h-full bg-signal-red rounded-full margin-fill" data-width="10" style="width:0%"></div></div><p class="text-[10px] text-signal-red mt-1.5 font-medium">10% margin</p></div>
+<div class="rounded-2xl p-5 md:p-7 anim d2" style="background:#002a1f;border:1px solid rgba(255,59,59,.15)"><div class="w-10 h-10 rounded-full bg-signal-red/10 flex items-center justify-center mb-4"><svg class="w-5 h-5 text-signal-red" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div><p class="font-bold text-base md:text-lg text-white leading-snug">Killed a feature that was</p><p class="font-bold text-base md:text-lg text-signal-red leading-snug">your highest-margin product</p><div class="border-t border-card-border my-4"></div><p class="text-sm font-medium text-signal-red">LOST: $340K/year in margin</p><p class="text-xs text-white/60 mt-1">(didn't know Feature B was 82% margin)</p><div class="mt-4 space-y-2"><div class="flex items-center gap-2"><span class="text-[10px] text-white/60 w-14 text-right">Feature A</span><div class="flex-1 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div class="h-full bg-brand-lime/70 rounded-full" style="width:40%"></div></div><span class="text-[10px] text-white/60 w-8">40%</span></div><div class="flex items-center gap-2 relative"><span class="text-[10px] text-white/60 w-14 text-right">Feature B</span><div class="flex-1 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div class="h-full bg-brand-lime rounded-full" style="width:82%"></div></div><span class="text-[10px] text-brand-lime w-8">82%</span><div class="absolute inset-0 flex items-center justify-center pointer-events-none"><svg class="w-full h-6" viewBox="0 0 200 20"><line x1="60" y1="2" x2="190" y2="18" stroke="#ff3b3b" stroke-width="2" opacity=".8"/><line x1="60" y1="18" x2="190" y2="2" stroke="#ff3b3b" stroke-width="2" opacity=".8"/></svg></div></div><div class="flex items-center gap-2"><span class="text-[10px] text-white/60 w-14 text-right">Feature C</span><div class="flex-1 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div class="h-full bg-signal-red/70 rounded-full" style="width:15%"></div></div><span class="text-[10px] text-signal-red w-8">15%</span></div></div></div>
+<div class="rounded-2xl p-5 md:p-7 anim d3" style="background:#002a1f;border:1px solid rgba(255,59,59,.15)"><div class="w-10 h-10 rounded-full bg-signal-red/10 flex items-center justify-center mb-4"><svg class="w-5 h-5 text-signal-red" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181"/></svg></div><p class="font-bold text-base md:text-lg text-white leading-snug">Approved a pricing change</p><p class="font-bold text-base md:text-lg text-signal-red leading-snug">that cut margins 18%</p><div class="border-t border-card-border my-4"></div><p class="text-sm font-medium text-signal-red">Found out <span class="text-base font-bold">90 days</span> later</p><p class="text-xs text-white/60 mt-1">(no real-time margin monitoring)</p><div class="mt-4"><svg viewBox="0 0 200 50" class="w-full h-12"><line x1="10" y1="48" x2="190" y2="48" stroke="#1a1a1a" stroke-width=".5"/><polyline points="10,8 100,22 190,40" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="8" r="3" fill="#ff3b3b"/><circle cx="100" cy="22" r="3" fill="#ff3b3b"/><circle cx="190" cy="40" r="3" fill="#ff3b3b"/><text x="20" y="6" font-size="8" fill="#ff3b3b" font-family="Inter">58%</text><text x="108" y="20" font-size="8" fill="#ff3b3b" font-family="Inter">49%</text><text x="168" y="38" font-size="8" fill="#ff3b3b" font-family="Inter">40%</text></svg></div></div>
+</div>
+<p class="text-base md:text-xl font-medium text-brand-mint mt-8 md:mt-10 text-center anim d4">You can't optimize what you can't see.</p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">03 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S4 SPREADSHEET AUTOPSY -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[44px] text-white leading-tight">Let's Look at What Your Spreadsheet <span class="text-signal-red red-glow">Actually Says</span></h2></div>
+<div class="mt-8 w-full max-w-3xl anim d1"><div class="bg-white overflow-hidden" style="border:1px solid #d1d5db;border-radius:4px"><table class="w-full font-mono text-[10px] md:text-[14px]" style="border-collapse:collapse">
+<thead><tr style="background:#6b7280"><th class="py-1.5 px-2 md:px-3 text-white font-bold text-center border-r border-[#9ca3af] w-8"></th><th class="py-1.5 px-2 md:px-4 text-white font-bold text-center border-r border-[#9ca3af]">A</th><th class="py-1.5 px-2 md:px-4 text-white font-bold text-center border-r border-[#9ca3af]">B</th><th class="py-1.5 px-2 md:px-4 text-white font-bold text-center border-r border-[#9ca3af]">C</th><th class="py-1.5 px-2 md:px-4 text-white font-bold text-center">D</th></tr></thead>
+<tbody>
+<tr class="border-b border-[#e5e7eb] bg-[#f9fafb]"><td class="py-1.5 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">1</td><td class="py-1.5 px-2 md:px-4 text-[#333] font-bold">Customer</td><td class="py-1.5 px-2 md:px-4 text-[#333] font-bold">Revenue</td><td class="py-1.5 px-2 md:px-4 text-[#333] font-bold">Cost</td><td class="py-1.5 px-2 md:px-4 text-[#333] font-bold">Margin</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-2 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">2</td><td class="py-2 px-2 md:px-4 text-[#111827]">Acme</td><td class="py-2 px-2 md:px-4 text-[#111827]">$12,400</td><td class="py-2 px-2 md:px-4 text-[#111827]">$3,100</td><td class="py-2 px-2 md:px-4"><span class="text-signal-red font-bold font-inter text-[9px] md:text-[12px]">← MANUAL</span></td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-2 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">3</td><td class="py-2 px-2 md:px-4 text-[#111827]">TechFlow</td><td class="py-2 px-2 md:px-4 text-[#111827]">$8,700</td><td class="py-2 px-2 md:px-4 text-[#ef4444] font-bold" style="background:rgba(255,59,59,.15)">#REF!</td><td class="py-2 px-2 md:px-4 text-[#ef4444] font-bold" style="background:rgba(255,59,59,.15)">#REF!</td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-2 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">4</td><td class="py-2 px-2 md:px-4 text-[#111827]">DataSync</td><td class="py-2 px-2 md:px-4 text-[#111827]">$6,200</td><td class="py-2 px-2 md:px-4 text-[#111827]">$2,800</td><td class="py-2 px-2 md:px-4"><span class="text-signal-red font-bold font-inter text-[9px] md:text-[12px]">← FORMULA LINKS TO DELETED TAB</span></td></tr>
+<tr class="border-b border-[#e5e7eb]"><td class="py-2 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">5</td><td class="py-2 px-2 md:px-4 text-[#111827]">CloudBit</td><td class="py-2 px-2 md:px-4 text-[#111827]">$4,100</td><td class="py-2 px-2 md:px-4 text-[#f59e0b] font-bold" style="background:rgba(245,166,35,.1)">???</td><td class="py-2 px-2 md:px-4"><span class="text-signal-red font-bold font-inter text-[9px] md:text-[12px]">← NOT UPDATED SINCE OCT</span></td></tr>
+<tr style="background:rgba(164,234,73,.05)"><td class="py-2 px-2 text-[#9ca3af] text-center border-r border-[#e5e7eb]">6</td><td class="py-2 px-2 md:px-4 text-[#111827]">NeuralOps</td><td class="py-2 px-2 md:px-4 text-[#111827]">$3,800</td><td class="py-2 px-2 md:px-4 text-[#111827]">$1,400</td><td class="py-2 px-2 md:px-4"><span class="text-[#111827]">63.2%</span> <span class="text-brand-lime font-bold font-inter text-[9px] md:text-[12px]">← ONLY CORRECT ROW</span></td></tr>
+</tbody></table></div></div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 md:mt-8 w-full max-w-3xl">
+<div class="rounded-lg p-4 anim d2" style="background:rgba(255,59,59,.05);border:1px solid rgba(255,59,59,.15)"><div class="flex items-center gap-2 mb-1"><div class="w-3 h-3 rounded-full bg-signal-red"></div><span class="text-[13px] font-bold text-signal-red">Manual cost entry</span></div><p class="text-[12px] text-white/60">No source of truth — someone typed it in</p></div>
+<div class="rounded-lg p-4 anim d3" style="background:rgba(255,59,59,.05);border:1px solid rgba(255,59,59,.15)"><div class="flex items-center gap-2 mb-1"><div class="w-3 h-3 rounded-full bg-signal-red"></div><span class="text-[13px] font-bold text-signal-red">Broken formula references</span></div><p class="text-[12px] text-white/60">#REF! errors from deleted tabs and sheets</p></div>
+<div class="rounded-lg p-4 anim d4" style="background:rgba(255,59,59,.05);border:1px solid rgba(255,59,59,.15)"><div class="flex items-center gap-2 mb-1"><div class="w-3 h-3 rounded-full bg-signal-red"></div><span class="text-[13px] font-bold text-signal-red">Stale data (4 months old)</span></div><p class="text-[12px] text-white/60">Cost data not updated since October</p></div>
+</div>
+<p class="text-sm md:text-base font-medium text-white/70 mt-6 text-center anim d5"><span class="text-signal-red font-bold">1 out of 5</span> rows is correct. This is your <em>"source of truth."</em></p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">04 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S5 FIVE BLIND SPOTS -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-16" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[44px] text-white leading-tight">Five Things You <span class="text-signal-red red-glow">Can't See</span> Right Now</h2><p class="text-sm md:text-lg text-white/60 mt-3">Your spreadsheet shows revenue. It doesn't show <span class="text-brand-lime">reality.</span></p></div>
+<div class="mt-8 w-full max-w-3xl space-y-2">
+<div class="bg-card-dark border border-card-border rounded-r-xl p-4 md:px-6 md:py-4 anim d1" style="border-left:3px solid rgba(255,59,59,.6)"><span class="text-sm font-bold text-white uppercase tracking-wide">Per-Customer Margins</span><p class="text-[13px] text-white/70 mt-1">You know total revenue. You don't know which customers are profitable and which are costing you money.</p><p class="text-[12px] italic text-signal-red/80 mt-1">"20% of customers often generate negative margin"</p></div>
+<div class="bg-card-dark border border-card-border rounded-r-xl p-4 md:px-6 md:py-4 anim d2" style="border-left:3px solid rgba(255,59,59,.6)"><span class="text-sm font-bold text-white uppercase tracking-wide">Real-Time Cost Attribution</span><p class="text-[13px] text-white/70 mt-1">Infrastructure costs are allocated monthly, not per transaction. You're averaging, not measuring.</p><p class="text-[12px] italic text-signal-red/80 mt-1">"Cost spikes hide for 30+ days"</p></div>
+<div class="bg-card-dark border border-card-border rounded-r-xl p-4 md:px-6 md:py-4 anim d3" style="border-left:3px solid rgba(255,59,59,.6)"><span class="text-sm font-bold text-white uppercase tracking-wide">Pricing Model Performance</span><p class="text-[13px] text-white/70 mt-1">Is your pricing too high (churn) or too low (leaving money on the table)? No way to know.</p><p class="text-[12px] italic text-signal-red/80 mt-1">"Average SaaS underprices by 18%"</p></div>
+<div class="bg-card-dark border border-card-border rounded-r-xl p-4 md:px-6 md:py-4 anim d4" style="border-left:3px solid rgba(255,59,59,.6)"><span class="text-sm font-bold text-white uppercase tracking-wide">Churn Risk Signals</span><p class="text-[13px] text-white/70 mt-1">Usage dropping? Payment delays? Margin shrinking? These signals exist. You just can't see them.</p><p class="text-[12px] italic text-signal-red/80 mt-1">"Churn is predictable 30 days out"</p></div>
+<div class="bg-card-dark border border-card-border rounded-r-xl p-4 md:px-6 md:py-4 anim d5" style="border-left:3px solid rgba(255,59,59,.6)"><span class="text-sm font-bold text-white uppercase tracking-wide">Revenue Forecasting Accuracy</span><p class="text-[13px] text-white/70 mt-1">Spreadsheet forecasts are ±30%. Real-time data with usage trends = ±5%.</p><p class="text-[12px] italic text-signal-red/80 mt-1">"Board meetings with wrong numbers"</p></div>
+</div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">05 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S6 THE REVEAL -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-16" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%);background-image:radial-gradient(ellipse at center,rgba(0,48,36,.10) 0%,transparent 50%)">
+<div class="anim"><span class="inline-block bg-brand-lime text-brand-teal text-[10px] md:text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full">The Dashboard</span></div>
+<div class="text-center max-w-3xl mt-3 anim d1"><h2 class="font-extrabold text-2xl md:text-[44px] text-white leading-tight tracking-tight">The dashboard your board<br>has been <span class="text-brand-lime lime-glow">asking for.</span></h2></div>
+<div class="mt-6 md:mt-8 w-full max-w-5xl anim d2"><div class="bg-card-dark rounded-2xl border border-card-border overflow-hidden" style="box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 120px rgba(164,234,73,.04)">
+<div class="flex items-center justify-between px-4 md:px-6 py-2.5 bg-brand-black border-b border-card-border"><span class="text-xs md:text-sm font-medium text-white">Revenue Overview</span><div class="flex items-center gap-3"><span class="text-[10px] md:text-xs text-white/60">Last 30 days</span><div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-brand-lime" style="animation:livePulse 2s ease-in-out infinite"></span><span class="text-[10px] font-bold text-brand-lime tracking-wider">LIVE</span></div></div></div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 p-3 md:p-4">
+<div class="bg-brand-black rounded-xl p-3 md:p-4 border border-card-border"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-widest font-medium">MRR</div><div class="text-xl md:text-[28px] font-extrabold text-white mt-1">$84K</div><div class="text-[9px] md:text-[10px] text-brand-lime font-medium mt-1">↑ 12% vs last month</div></div>
+<div class="bg-brand-black rounded-xl p-3 md:p-4 border border-card-border"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-widest font-medium">NET MARGIN</div><div class="text-xl md:text-[28px] font-extrabold text-brand-lime mt-1">58.7%</div><div class="text-[9px] md:text-[10px] text-brand-lime font-medium mt-1">↑ 3.2pts vs last month</div></div>
+<div class="bg-brand-black rounded-xl p-3 md:p-4 border border-card-border"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-widest font-medium">DSO</div><div class="text-xl md:text-[28px] font-extrabold text-white mt-1">28 days</div><div class="text-[9px] md:text-[10px] text-brand-lime font-medium mt-1">↓ 4 days vs last month</div></div>
+<div class="bg-brand-black rounded-xl p-3 md:p-4 border border-card-border"><div class="text-[9px] md:text-[11px] text-white/60 uppercase tracking-widest font-medium">AT-RISK</div><div class="text-xl md:text-[28px] font-extrabold text-signal-amber mt-1">2</div><div class="text-[9px] md:text-[10px] text-white/60 mt-1">DataFlow, AgentLab</div></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3 px-3 md:px-4 pb-3 md:pb-4">
+<div class="bg-brand-black/60 rounded-xl p-3 md:p-4 border border-card-border"><div class="text-[9px] md:text-[11px] text-white/60 font-medium mb-3">Revenue vs Cost — Last 6 Months</div><svg viewBox="0 0 480 200" class="w-full"><line x1="40" y1="20" x2="460" y2="20" stroke="#1f1f1f" stroke-width=".5"/><line x1="40" y1="60" x2="460" y2="60" stroke="#1f1f1f" stroke-width=".5"/><line x1="40" y1="100" x2="460" y2="100" stroke="#1f1f1f" stroke-width=".5"/><line x1="40" y1="140" x2="460" y2="140" stroke="#1f1f1f" stroke-width=".5"/><line x1="40" y1="180" x2="460" y2="180" stroke="#1f1f1f" stroke-width=".5"/><text x="35" y="24" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="end">$80K</text><text x="35" y="104" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="end">$40K</text><text x="35" y="184" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="end">$0</text><path d="M60,110 L140,92 L220,80 L300,62 L380,42 L460,20 L460,180 L60,180Z" fill="rgba(164,234,73,.08)"/><polyline points="60,110 140,92 220,80 300,62 380,42 460,20" fill="none" stroke="#a4ea49" stroke-width="2.5" stroke-linecap="round"/><path d="M60,152 L140,148 L220,144 L300,138 L380,132 L460,126 L460,180 L60,180Z" fill="rgba(255,59,59,.05)"/><polyline points="60,152 140,148 220,144 300,138 380,132 460,126" fill="none" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/><text x="60" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Sep</text><text x="140" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Oct</text><text x="220" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Nov</text><text x="300" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Dec</text><text x="380" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Jan</text><text x="460" y="196" font-size="9" fill="#6b7280" font-family="Inter" text-anchor="middle">Feb</text></svg><div class="flex items-center gap-4 mt-2"><div class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-brand-lime rounded"></div><span class="text-[9px] text-white/60">Revenue</span></div><div class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-signal-red rounded"></div><span class="text-[9px] text-white/60">Cost</span></div></div></div>
+<div class="bg-brand-black/60 rounded-xl border border-card-border overflow-hidden"><div class="px-3 pt-3 pb-2"><span class="text-[9px] md:text-[11px] text-white/60 font-medium">Customer Margins — Real-Time</span></div><table class="w-full"><thead><tr class="border-b border-card-border bg-brand-black"><th class="py-2 px-3 text-left text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">Customer</th><th class="py-2 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">Rev</th><th class="py-2 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider hidden md:table-cell">Cost</th><th class="py-2 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">Margin</th><th class="py-2 px-2 text-center text-[9px] font-bold text-white/60 uppercase hidden md:table-cell"></th></tr></thead><tbody class="text-[11px] md:text-[13px]">
+<tr class="border-b border-card-border/50"><td class="py-2 px-3 font-medium text-white">Acme AI</td><td class="py-2 px-2 text-right text-white">$12.4K</td><td class="py-2 px-2 text-right text-white/60 hidden md:table-cell">$4.3K</td><td class="py-2 px-2 text-right font-bold text-brand-lime">+65%</td><td class="py-2 px-2 text-center hidden md:table-cell"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2 px-3 font-medium text-white">BotCorp</td><td class="py-2 px-2 text-right text-white">$8.2K</td><td class="py-2 px-2 text-right text-white/60 hidden md:table-cell">$3.1K</td><td class="py-2 px-2 text-right font-bold text-brand-lime">+62%</td><td class="py-2 px-2 text-center hidden md:table-cell"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2 px-3 font-medium text-white">DataFlow</td><td class="py-2 px-2 text-right text-white">$3.1K</td><td class="py-2 px-2 text-right text-white/60 hidden md:table-cell">$2.5K</td><td class="py-2 px-2 text-right font-bold text-signal-amber">+20%</td><td class="py-2 px-2 text-center hidden md:table-cell"><span class="w-2 h-2 rounded-full bg-signal-amber inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2 px-3 font-medium text-white">NeuralOps</td><td class="py-2 px-2 text-right text-white">$22.8K</td><td class="py-2 px-2 text-right text-white/60 hidden md:table-cell">$6.8K</td><td class="py-2 px-2 text-right font-bold text-brand-lime">+70%</td><td class="py-2 px-2 text-center hidden md:table-cell"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2 px-3 font-medium text-white">AgentLab</td><td class="py-2 px-2 text-right text-white">$5.6K</td><td class="py-2 px-2 text-right text-white/60 hidden md:table-cell">$4.8K</td><td class="py-2 px-2 text-right font-bold text-signal-red">+15%</td><td class="py-2 px-2 text-center hidden md:table-cell"><span class="w-2 h-2 rounded-full bg-signal-red inline-block"></span></td></tr>
+<tr class="bg-brand-black border-t border-brand-lime/20"><td class="py-2 px-3 font-bold text-white text-[11px] md:text-sm">TOTAL</td><td class="py-2 px-2 text-right font-extrabold text-white text-[11px] md:text-sm">$52.1K</td><td class="py-2 px-2 text-right text-white/60 text-[11px] md:text-sm hidden md:table-cell">$21.5K</td><td class="py-2 px-2 text-right font-extrabold text-brand-lime text-[12px] md:text-sm">+58.7%</td><td class="py-2 px-2 hidden md:table-cell"></td></tr>
+</tbody></table></div>
+</div></div></div>
+<p class="text-sm md:text-base text-white/60 mt-4 text-center anim d3">Usage metering + cost attribution + billing + analytics. One platform. Updated in real-time.</p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-16 text-white/40 text-xs font-medium">06 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-16"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S7 CODE → OUTCOME -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#003024 0%,#001a14 50%,#002a1f 100%)">
+<div class="text-center max-w-3xl anim"><h2 class="font-extrabold text-2xl md:text-[48px] text-white leading-tight tracking-tight">One integration. Full visibility.<br><span class="text-brand-lime lime-glow">10 minutes.</span></h2></div>
+<div class="mt-8 md:mt-10 w-full max-w-5xl flex flex-col md:flex-row items-stretch gap-6 md:gap-0">
+<div class="flex-1 anim d1"><p class="text-lg md:text-xl font-bold text-white mb-4">You add 10 lines of code.</p><div class="rounded-xl overflow-hidden border border-card-border" style="background:#0d1117;box-shadow:0 8px 32px rgba(0,0,0,.3)"><div class="flex items-center gap-2 px-4 py-2.5 border-b border-card-border"><div class="flex gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-signal-red/40"></div><div class="w-2.5 h-2.5 rounded-full bg-signal-amber/40"></div><div class="w-2.5 h-2.5 rounded-full bg-brand-lime/40"></div></div><span class="text-[10px] text-white/30 font-mono ml-2">index.js</span></div><pre class="p-4 md:p-6 font-mono text-xs md:text-sm leading-relaxed overflow-x-auto"><code><span class="text-white/30 select-none mr-4"> 1</span><span class="text-[#ff7b72]">import</span> { UnitPay } <span class="text-[#ff7b72]">from</span> <span class="text-brand-lime">'@unitpay/sdk'</span>;
+<span class="text-white/30 select-none mr-4"> 2</span>
+<span class="text-white/30 select-none mr-4"> 3</span><span class="text-[#ff7b72]">const</span> up = <span class="text-[#ff7b72]">new</span> UnitPay({
+<span class="text-white/30 select-none mr-4"> 4</span>  <span class="text-[#79c0ff]">apiKey</span>: <span class="text-signal-amber">process.env.UNITPAY_KEY</span>
+<span class="text-white/30 select-none mr-4"> 5</span>});
+<span class="text-white/30 select-none mr-4"> 6</span>
+<span class="text-white/30 select-none mr-4"> 7</span><span class="text-white/40">// Track every billable event</span>
+<span class="text-white/30 select-none mr-4"> 8</span>up.track(<span class="text-brand-lime">'api_call'</span>, {
+<span class="text-white/30 select-none mr-4"> 9</span>  <span class="text-[#79c0ff]">customer</span>: req.customerId,
+<span class="text-white/30 select-none mr-4">10</span>  <span class="text-[#79c0ff]">model</span>: <span class="text-brand-lime">'gpt-4-turbo'</span>,
+<span class="text-white/30 select-none mr-4">11</span>  <span class="text-[#79c0ff]">tokens</span>: response.usage.total
+<span class="text-white/30 select-none mr-4">12</span>});</code></pre></div></div>
+<div class="flex items-center justify-center px-4 md:px-8 anim d2"><div class="flex flex-col items-center gap-1"><span class="text-[10px] md:text-xs font-medium text-brand-lime whitespace-nowrap">10 lines</span><span class="text-brand-lime text-2xl md:text-4xl rotate-90 md:rotate-0">→</span><span class="text-[10px] md:text-xs font-medium text-brand-lime whitespace-nowrap">full visibility</span></div></div>
+<div class="flex-1 anim d3"><p class="text-lg md:text-xl font-bold text-white mb-4">You see:</p><div class="space-y-3 md:space-y-4">
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Per-customer margins</span></div>
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Cost per API call</span></div>
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Revenue by pricing tier</span></div>
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Churn risk indicators</span></div>
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Cash flow forecast</span></div>
+<div class="flex items-center gap-3"><div class="w-6 h-6 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3.5 h-3.5 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg font-medium text-brand-lime">Board-ready reports</span></div>
+</div></div></div>
+<div class="mt-8 text-center anim d4"><p class="text-sm md:text-base font-medium text-brand-mint mb-3">Works alongside Stripe. No rip-and-replace.</p><div class="flex items-center justify-center gap-3"><span class="inline-flex items-center gap-1.5 bg-[#635bff]/15 border border-[#635bff]/30 text-[#a29bfe] text-xs font-medium px-3 py-1.5 rounded-lg">Stripe</span><span class="text-white/40 text-lg">+</span><span class="inline-flex items-center gap-1.5 bg-brand-lime/15 border border-brand-lime/30 text-brand-lime text-xs font-medium px-3 py-1.5 rounded-lg">UnitPay</span></div></div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">07 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S8 CUSTOMER MARGIN ANALYSIS -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-16 py-12" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[40px] text-white leading-tight">Your Most Profitable Customer <span class="text-brand-lime lime-glow">Isn't Who You Think</span></h2></div>
+<div class="mt-6 md:mt-8 w-full max-w-5xl anim d1"><div class="bg-brand-black rounded-2xl border border-card-border overflow-hidden" style="box-shadow:0 16px 48px rgba(0,0,0,.5)">
+<div class="px-3 md:px-5 pt-3 pb-2 border-b border-card-border flex items-center justify-between"><span class="text-[10px] md:text-xs font-bold text-white/60 uppercase tracking-wider">Customer Margins — Real-Time</span><div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-brand-lime" style="animation:livePulse 2s ease-in-out infinite"></span><span class="text-[9px] font-bold text-brand-lime">LIVE</span></div></div>
+<div class="overflow-x-auto"><table class="w-full">
+<thead><tr class="bg-card-dark border-b border-card-border"><th class="py-2.5 px-3 text-left text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">Customer</th><th class="py-2.5 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">MRR</th><th class="py-2.5 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider hidden md:table-cell">COGS</th><th class="py-2.5 px-2 text-right text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider">Margin</th><th class="py-2.5 px-2 text-center text-[9px] md:text-[11px] font-bold text-white/60 uppercase tracking-wider hidden md:table-cell">Trend</th><th class="py-2.5 px-2 text-center text-[9px] font-bold text-white/60 uppercase tracking-wider w-8"></th></tr></thead>
+<tbody class="text-[11px] md:text-[13px]">
+<tr class="border-b border-card-border/50"><td class="py-2.5 px-3 font-medium text-white">Acme Corp</td><td class="py-2.5 px-2 text-right text-white">$12.4K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$3.1K</td><td class="py-2.5 px-2 text-right font-bold text-brand-lime">75.0%</td><td class="py-2.5 px-2 text-center text-brand-lime hidden md:table-cell">▲▲▲</td><td class="py-2.5 px-2 text-center"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2.5 px-3 font-medium text-white">TechFlow</td><td class="py-2.5 px-2 text-right text-white">$8.7K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$2.9K</td><td class="py-2.5 px-2 text-right font-bold text-brand-lime">66.7%</td><td class="py-2.5 px-2 text-center text-brand-lime hidden md:table-cell">▲▲</td><td class="py-2.5 px-2 text-center"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2.5 px-3 font-medium text-white">NeuralOps</td><td class="py-2.5 px-2 text-right text-white">$3.8K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$1.4K</td><td class="py-2.5 px-2 text-right font-bold text-brand-lime">63.2%</td><td class="py-2.5 px-2 text-center text-brand-lime hidden md:table-cell">▲</td><td class="py-2.5 px-2 text-center"><span class="w-2 h-2 rounded-full bg-brand-lime inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2.5 px-3 font-medium text-white">DataSync</td><td class="py-2.5 px-2 text-right text-white">$6.2K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$2.8K</td><td class="py-2.5 px-2 text-right font-bold text-signal-amber">54.8%</td><td class="py-2.5 px-2 text-center text-white/40 hidden md:table-cell">─</td><td class="py-2.5 px-2 text-center"><span class="w-2 h-2 rounded-full bg-signal-amber inline-block"></span></td></tr>
+<tr class="border-b border-card-border/50"><td class="py-2.5 px-3 font-medium text-white">CloudBit</td><td class="py-2.5 px-2 text-right text-white">$4.1K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$3.2K</td><td class="py-2.5 px-2 text-right font-bold text-signal-red">22.0%</td><td class="py-2.5 px-2 text-center text-signal-red hidden md:table-cell">▼▼▼</td><td class="py-2.5 px-2 text-center"><span class="text-signal-amber text-xs">⚠</span></td></tr>
+<tr class="border-b border-card-border/50" style="background:rgba(255,59,59,.04)"><td class="py-2.5 px-3 font-medium text-white">PixelAI</td><td class="py-2.5 px-2 text-right text-white">$2.9K</td><td class="py-2.5 px-2 text-right text-white/60 hidden md:table-cell">$3.4K</td><td class="py-2.5 px-2 text-right font-extrabold text-signal-red">-17.2%</td><td class="py-2.5 px-2 text-center text-signal-red hidden md:table-cell">▼▼</td><td class="py-2.5 px-2 text-center"><span class="w-2.5 h-2.5 rounded-full bg-signal-red inline-block"></span></td></tr>
+</tbody></table></div></div></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 w-full max-w-5xl">
+<div class="rounded-xl p-4 md:p-5 anim d2" style="background:rgba(255,59,59,.03);border:1px solid rgba(255,59,59,.15);border-left:3px solid #ff3b3b"><p class="text-sm md:text-[15px] text-white leading-relaxed"><span class="font-bold text-signal-red">PixelAI</span> costs you <span class="font-bold text-signal-red">$500/month</span> to serve. They pay $2.9K but consume $3.4K in resources.</p><p class="text-xs md:text-sm font-bold text-signal-red mt-3">Action: Reprice or sunset this tier</p></div>
+<div class="rounded-xl p-4 md:p-5 anim d3" style="background:rgba(164,234,73,.03);border:1px solid rgba(164,234,73,.15);border-left:3px solid #a4ea49"><p class="text-sm md:text-[15px] text-white leading-relaxed"><span class="font-bold text-brand-lime">Acme Corp</span> alone generates <span class="font-bold text-brand-lime">34% of your total margin.</span> Are you protecting this account?</p><p class="text-xs md:text-sm font-bold text-brand-lime mt-3">Action: Assign dedicated success</p></div>
+</div>
+<p class="text-sm md:text-base text-white/50 mt-5 text-center anim d4">This is what your spreadsheet can never show you.</p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-16 text-white/40 text-xs font-medium">08 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-16"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S9 BOARD-READY REPORTS -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#003024 0%,#001a14 50%,#002a1f 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[40px] text-white leading-tight">Board Meeting in 2 Hours? <span class="text-brand-lime lime-glow">One Click.</span></h2></div>
+<div class="mt-6 md:mt-8 w-full max-w-xl anim d1"><div class="bg-white rounded-lg overflow-hidden" style="box-shadow:0 16px 48px rgba(0,0,0,.3);padding:24px 28px">
+<div class="flex items-center gap-2 mb-4"><svg class="w-5 h-5 text-[#111]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg><span class="text-[#111] font-bold text-base md:text-lg">Monthly Revenue Report</span></div>
+<p class="text-[#6b7280] text-xs md:text-sm mb-5">February 2026</p>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+<div><p class="text-[10px] text-[#6b7280] uppercase font-medium">MRR</p><p class="text-[#111] font-extrabold text-lg">$84,200</p><p class="text-[10px] text-[#22c55e] font-medium">▲ 12.3%</p></div>
+<div><p class="text-[10px] text-[#6b7280] uppercase font-medium">Net Margin</p><p class="text-[#111] font-extrabold text-lg">58.7%</p><p class="text-[10px] text-[#22c55e] font-medium">▲ 3.1pp</p></div>
+<div><p class="text-[10px] text-[#6b7280] uppercase font-medium">Customers</p><p class="text-[#111] font-extrabold text-lg">47</p><p class="text-[10px] text-[#22c55e] font-medium">▲ 5</p></div>
+<div><p class="text-[10px] text-[#6b7280] uppercase font-medium">At-Risk</p><p class="text-[#111] font-extrabold text-lg">2</p><p class="text-[10px] text-[#22c55e] font-medium">▼ 3</p></div>
+</div>
+<svg viewBox="0 0 400 60" class="w-full mb-4"><path d="M0,50 L80,42 L160,38 L240,28 L320,18 L400,8 L400,60 L0,60Z" fill="rgba(34,197,94,.08)"/><polyline points="0,50 80,42 160,38 240,28 320,18 400,8" fill="none" stroke="#22c55e" stroke-width="2"/></svg>
+<div class="space-y-1.5 mb-4">
+<div class="flex justify-between text-[11px]"><span class="text-[#374151]">Acme Corp</span><span class="text-[#22c55e] font-bold">75.0%</span></div>
+<div class="flex justify-between text-[11px]"><span class="text-[#374151]">TechFlow</span><span class="text-[#22c55e] font-bold">66.7%</span></div>
+<div class="flex justify-between text-[11px]"><span class="text-[#374151]">NeuralOps</span><span class="text-[#22c55e] font-bold">63.2%</span></div>
+<div class="flex justify-between text-[11px]"><span class="text-[#374151]">DataSync</span><span class="text-[#f59e0b] font-bold">54.8%</span></div>
+<div class="flex justify-between text-[11px]"><span class="text-[#374151]">PixelAI</span><span class="text-[#ef4444] font-bold">-17.2%</span></div>
+</div>
+<div class="border-t border-[#e5e7eb] pt-3 flex items-center gap-3 text-[10px] text-[#9ca3af]"><span>Auto-generated</span><span>&#183;</span><span>PDF</span><span>&#183;</span><span>Shareable link</span></div>
+</div></div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 w-full max-w-4xl">
+<div class="bg-card-dark border border-card-border rounded-xl p-5 anim d2"><p class="text-2xl mb-2">&#128196;</p><p class="font-bold text-base text-white">Board Report</p><p class="text-[13px] text-white/60 mt-1.5 leading-relaxed">Full metrics + charts + analysis</p><p class="text-[13px] font-bold text-brand-lime mt-3">One click. PDF export.</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-5 anim d3"><p class="text-2xl mb-2">&#128231;</p><p class="font-bold text-base text-white">Investor Update</p><p class="text-[13px] text-white/60 mt-1.5 leading-relaxed">KPI summary + highlights + next steps</p><p class="text-[13px] font-bold text-brand-lime mt-3">One click. Email-ready.</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-5 anim d4"><p class="text-2xl mb-2">&#128202;</p><p class="font-bold text-base text-white">Team Dashboard</p><p class="text-[13px] text-white/60 mt-1.5 leading-relaxed">Shareable live link (auto-refreshing)</p><p class="text-[13px] font-bold text-brand-lime mt-3">One click. Always live.</p></div>
+</div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">09 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S10 CUSTOMER STORY -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-12" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[40px] text-white leading-tight">They Went From Spreadsheet to Dashboard<br><span class="text-brand-lime lime-glow">Before Their Coffee Got Cold</span></h2></div>
+<div class="w-full max-w-4xl mt-8 space-y-4">
+<div class="rounded-xl p-4 md:p-6 flex flex-col md:flex-row items-start gap-4 anim d1" style="background:rgba(255,59,59,.03);border:1px solid rgba(255,59,59,.12)">
+<div class="flex-shrink-0 w-full md:w-48 h-16 bg-white rounded overflow-hidden flex items-center justify-center" style="transform:rotate(-1deg)"><div class="text-[8px] font-mono text-[#6b7280] leading-tight p-2 text-center">DRAFT-v3-FINAL.xlsx<br><span class="text-[#ef4444]">#REF! #REF! #DIV/0!</span><br><span class="text-[#9ca3af]">$12,400 | ~$5K? | ???</span></div></div>
+<div><p class="text-sm md:text-[15px] text-white/80 leading-relaxed">4 hours/week on revenue reporting. Still wrong. No per-customer margins. Board got wrong numbers twice.</p><p class="text-xs text-signal-red/80 font-medium mt-2">Before UnitPay</p></div>
+</div>
+<div class="flex items-center justify-center gap-3 anim d2"><div class="h-px flex-1 max-w-[140px]" style="background:rgba(164,234,73,.3)"></div><span class="text-sm font-bold text-brand-lime whitespace-nowrap">10 minutes later</span><div class="h-px flex-1 max-w-[140px]" style="background:rgba(164,234,73,.3)"></div></div>
+<div class="rounded-xl p-4 md:p-6 flex flex-col md:flex-row items-start gap-4 anim d3" style="background:rgba(164,234,73,.03);border:1px solid rgba(164,234,73,.12)">
+<div class="flex-shrink-0 w-full md:w-48 h-16 bg-card-dark border border-card-border rounded overflow-hidden flex items-center justify-center"><div class="text-[8px] font-mono leading-tight p-2 text-center"><span class="text-brand-lime font-bold">&#9679; LIVE</span><span class="text-white ml-2">$84K MRR</span><br><span class="text-white/60">Margin:</span> <span class="text-brand-lime font-bold">58.7%</span><br><span class="text-white/40">5 customers &#183; real-time</span></div></div>
+<div><p class="text-sm md:text-[15px] text-white/80 leading-relaxed">Real-time. Auto-generated. Found a negative-margin customer in the first hour. CFO now checks this daily.</p><p class="text-xs text-brand-lime font-medium mt-2">After UnitPay</p></div>
+</div>
+</div>
+<div class="w-full max-w-3xl mt-6 rounded-xl p-5 md:p-6 anim d4" style="background:rgba(164,234,73,.03);border:1px solid rgba(164,234,73,.1)"><p class="text-sm md:text-base text-white/90 italic leading-relaxed">"I used to dread board meetings because our numbers were always a month old. Now I pull up the UnitPay dashboard live in the meeting. The board loves it."</p><p class="text-xs text-white/50 mt-3 font-medium">— CFO, Series B AI Platform</p></div>
+<div class="grid grid-cols-3 gap-4 mt-6 w-full max-w-3xl">
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d5"><p class="text-xl md:text-2xl font-extrabold text-brand-lime">4hrs → 0</p><p class="text-[11px] md:text-xs text-white/60 mt-1">weekly reporting time saved</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d5"><p class="text-xl md:text-2xl font-extrabold text-brand-lime">10 min</p><p class="text-[11px] md:text-xs text-white/60 mt-1">setup to first dashboard</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d6"><p class="text-xl md:text-2xl font-extrabold text-brand-lime">$340K</p><p class="text-[11px] md:text-xs text-white/60 mt-1">margin insights discovered</p></div>
+</div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">10 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S11 TRACTION & MOMENTUM -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[44px] text-white leading-tight">CFOs are finally getting the<br><span class="text-brand-lime lime-glow">visibility</span> they need.</h2></div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mt-10 md:mt-12 w-full max-w-5xl text-center">
+<div class="anim d1"><p class="text-3xl md:text-[64px] font-extrabold text-brand-lime leading-none">3</p><p class="text-sm md:text-base font-medium text-white mt-2">companies live</p><p class="text-[11px] md:text-[13px] text-white/50 mt-1">real-time margin dashboards</p></div>
+<div class="anim d2"><p class="text-3xl md:text-[64px] font-extrabold text-brand-lime leading-none">10</p><p class="text-sm md:text-base font-medium text-white mt-2">on the waitlist</p><p class="text-[11px] md:text-[13px] text-white/50 mt-1">onboarding in progress</p></div>
+<div class="anim d3"><p class="text-3xl md:text-[64px] font-extrabold text-brand-lime leading-none"><span class="text-2xl md:text-[40px]">$</span>200K</p><p class="text-sm md:text-base font-medium text-white mt-2">raised</p><p class="text-[11px] md:text-[13px] text-white/50 mt-1">building the CFO's dashboard</p></div>
+<div class="anim d4"><p class="text-3xl md:text-[64px] font-extrabold text-brand-lime leading-none"><span class="text-2xl md:text-[40px]">$</span>299</p><p class="text-sm md:text-base font-medium text-white mt-2">/month — all-inclusive</p><p class="text-[11px] md:text-[13px] text-white/50 mt-1">replaces $5K/month stack</p></div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 w-full max-w-5xl">
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d2"><p class="text-2xl md:text-[48px] font-extrabold text-brand-lime leading-none">6&times;</p><p class="text-xs md:text-sm font-medium text-white mt-2">faster setup</p><p class="text-[10px] md:text-xs text-white/50 mt-1">vs. legacy platforms</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d3"><p class="text-2xl md:text-[48px] font-extrabold text-brand-lime leading-none">100%</p><p class="text-xs md:text-sm font-medium text-white mt-2">cost visibility</p><p class="text-[10px] md:text-xs text-white/50 mt-1">per-customer, per-feature</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d4"><p class="text-2xl md:text-[48px] font-extrabold text-brand-lime leading-none">40%</p><p class="text-xs md:text-sm font-medium text-white mt-2">higher margins</p><p class="text-[10px] md:text-xs text-white/50 mt-1">with real-time attribution</p></div>
+<div class="bg-card-dark border border-card-border rounded-xl p-4 text-center anim d5"><p class="text-2xl md:text-[48px] font-extrabold text-brand-lime leading-none">10</p><p class="text-xs md:text-sm font-medium text-white mt-2">lines of code</p><p class="text-[10px] md:text-xs text-white/50 mt-1">to full integration</p></div>
+</div>
+<div class="mt-8 w-full max-w-lg anim d6"><div class="bg-card-dark rounded-xl border border-card-border overflow-hidden opacity-80" style="box-shadow:0 12px 40px rgba(0,0,0,.4)">
+<div class="flex items-center justify-between px-3 py-2 border-b border-card-border"><span class="text-[9px] text-white/60 font-medium">Revenue Overview</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-brand-lime" style="animation:livePulse 2s infinite"></span><span class="text-[8px] font-bold text-brand-lime">LIVE</span></div></div>
+<div class="grid grid-cols-4 gap-1 p-2"><div class="bg-brand-black rounded p-1.5"><p class="text-[7px] text-white/50">MRR</p><p class="text-xs font-extrabold text-white">$84K</p></div><div class="bg-brand-black rounded p-1.5"><p class="text-[7px] text-white/50">MARGIN</p><p class="text-xs font-extrabold text-brand-lime">58.7%</p></div><div class="bg-brand-black rounded p-1.5"><p class="text-[7px] text-white/50">DSO</p><p class="text-xs font-extrabold text-white">28d</p></div><div class="bg-brand-black rounded p-1.5"><p class="text-[7px] text-white/50">AT-RISK</p><p class="text-xs font-extrabold text-signal-amber">2</p></div></div>
+</div></div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">11 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S12 BUILD VS BUY -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[40px] text-white leading-tight">Your Engineers Have Better Things to Build</h2></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8 md:mt-10 w-full max-w-5xl">
+<div class="rounded-2xl p-5 md:p-7 anim d1" style="background:rgba(255,59,59,.03);border:1px solid rgba(255,59,59,.15)">
+<p class="font-bold text-base md:text-xl text-signal-red mb-5">Build It Yourself</p>
+<div class="space-y-4">
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Timeline</p><p class="text-base md:text-lg font-bold text-signal-red">6–12 months</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Cost</p><p class="text-base md:text-lg font-bold text-signal-red">$150K–$300K</p><p class="text-xs text-white/50 mt-0.5">2 engineers &times; 6 months</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Maintenance</p><p class="text-base md:text-lg font-bold text-signal-red">Ongoing forever</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Features</p><p class="text-base md:text-lg font-bold text-white/50">Whatever you build</p></div>
+<div><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Opportunity Cost</p><p class="text-base md:text-lg font-bold text-signal-red">2 engineers NOT building product</p></div>
+</div></div>
+<div class="rounded-2xl p-5 md:p-7 anim d2" style="background:rgba(164,234,73,.03);border:1px solid rgba(164,234,73,.15)">
+<p class="font-bold text-base md:text-xl text-brand-lime mb-5">Buy UnitPay</p>
+<div class="space-y-4">
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Timeline</p><p class="text-base md:text-lg font-bold text-brand-lime">1 week</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Cost</p><p class="text-base md:text-lg font-bold text-brand-lime">$3,588/year</p><p class="text-xs text-white/60 mt-0.5">and a free tier</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Maintenance</p><p class="text-base md:text-lg font-bold text-brand-lime">$0 — we handle it</p></div>
+<div class="pb-3 border-b border-card-border"><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Features</p><p class="text-base md:text-lg font-bold text-brand-lime">Metering + billing + analytics + alerts + cost attribution + pricing simulation</p></div>
+<div><p class="text-[10px] text-white/50 uppercase tracking-wider font-bold mb-1">Opportunity Cost</p><p class="text-base md:text-lg font-bold text-brand-lime">$0 — engineers build product features</p></div>
+</div></div>
+</div>
+<p class="text-sm md:text-base font-medium text-white mt-8 text-center anim d3">Every month your engineers spend on billing is a month they don't spend on <span class="text-brand-lime font-bold">your product.</span></p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">12 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S13 DASHBOARD GETS SMARTER -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#003024 0%,#001a14 50%,#002a1f 100%)">
+<div class="text-center max-w-4xl anim"><h2 class="font-bold text-xl md:text-[40px] text-white leading-tight">Your Dashboard Gets <span class="text-brand-lime lime-glow">Smarter</span> Every Month</h2></div>
+<div class="mt-8 w-full max-w-3xl space-y-3 flex flex-col-reverse">
+<div class="rounded-xl p-5 md:p-6 anim d1" style="background:rgba(164,234,73,.08);border:1px solid rgba(164,234,73,.25)">
+<div class="flex items-center justify-between mb-3"><span class="text-xs md:text-sm font-bold text-brand-lime uppercase tracking-wider">Layer 1: Visibility</span><span class="inline-block text-[10px] md:text-xs font-bold text-brand-teal bg-brand-lime px-3 py-1 rounded-full">Available Now</span></div>
+<div class="space-y-2">
+<div class="flex items-center gap-2.5"><svg class="w-4 h-4 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg><span class="text-sm text-white">Real-time margins per customer</span></div>
+<div class="flex items-center gap-2.5"><svg class="w-4 h-4 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg><span class="text-sm text-white">Cost attribution per transaction</span></div>
+<div class="flex items-center gap-2.5"><svg class="w-4 h-4 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg><span class="text-sm text-white">Auto-generated reports &amp; alerts</span></div>
+<div class="flex items-center gap-2.5"><svg class="w-4 h-4 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg><span class="text-sm text-white">Full dashboard with drill-down</span></div>
+</div></div>
+<div class="flex justify-center"><span class="text-brand-lime/30 text-xl">&#9650;</span></div>
+<div class="rounded-xl p-5 md:p-6 anim d2" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1)">
+<div class="flex items-center justify-between mb-3"><span class="text-xs md:text-sm font-bold text-white uppercase tracking-wider">Layer 2: Predictive</span><span class="text-[10px] md:text-xs font-medium text-white/50">Coming Q3 2026</span></div>
+<div class="space-y-2">
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-white/40 flex-shrink-0"></div><span class="text-sm text-white/70">Revenue forecasting (±5% accuracy)</span></div>
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-white/40 flex-shrink-0"></div><span class="text-sm text-white/70">Churn prediction (30-day advance warning)</span></div>
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-white/40 flex-shrink-0"></div><span class="text-sm text-white/70">Pricing optimization suggestions</span></div>
+</div></div>
+<div class="flex justify-center"><span class="text-brand-lime/30 text-xl">&#9650;</span></div>
+<div class="rounded-xl p-5 md:p-6 anim d3" style="background:rgba(164,234,73,.03);border:1px solid rgba(164,234,73,.08)">
+<div class="flex items-center justify-between mb-3"><span class="text-xs md:text-sm font-bold text-brand-lime/50 uppercase tracking-wider">Layer 3: Autonomous</span><span class="text-[10px] md:text-xs font-medium text-brand-lime/40">Coming 2027</span></div>
+<div class="space-y-2">
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-brand-lime/30 flex-shrink-0"></div><span class="text-sm text-white/50">Auto-adjust pricing based on margin targets</span></div>
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-brand-lime/30 flex-shrink-0"></div><span class="text-sm text-white/50">Self-healing billing (auto-correct errors)</span></div>
+<div class="flex items-center gap-2.5"><div class="w-4 h-4 rounded-full border-2 border-brand-lime/30 flex-shrink-0"></div><span class="text-sm text-white/50">Autonomous collections &amp; follow-ups</span></div>
+</div></div>
+</div>
+<p class="text-sm md:text-base font-medium text-white/70 mt-8 text-center anim d4">Start with the dashboard you need <span class="text-brand-lime font-bold">today.</span><br>It becomes the intelligence you need <span class="text-brand-lime font-bold">tomorrow.</span></p>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">13 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<!-- S14 CTA -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20" style="background:linear-gradient(160deg,#0a0a0a 0%,#041a14 40%,#0a0a0a 100%);background-image:radial-gradient(ellipse at center,rgba(164,234,73,.05) 0%,transparent 60%)">
+<div class="text-center max-w-3xl anim"><h2 class="font-extrabold text-2xl md:text-[56px] text-white leading-tight tracking-tight">Your dashboard is<br><span class="text-brand-lime lime-glow">already being built.</span></h2></div>
+<div class="mt-6 space-y-3 anim d1">
+<div class="flex items-center gap-3"><div class="w-5 h-5 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3 h-3 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Your domain pre-configured</span></div>
+<div class="flex items-center gap-3"><div class="w-5 h-5 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3 h-3 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Your pricing model imported</span></div>
+<div class="flex items-center gap-3"><div class="w-5 h-5 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3 h-3 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg text-white">Your first margin dashboard ready</span></div>
+<div class="flex items-center gap-3"><div class="w-5 h-5 rounded-full bg-brand-lime/15 flex items-center justify-center flex-shrink-0"><svg class="w-3 h-3 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div><span class="text-base md:text-lg font-medium text-brand-lime">Log in and see what you've been missing</span></div>
+</div>
+<div class="mt-6 flex items-center justify-center gap-6 anim d2">
+<div class="flex-shrink-0 w-28 h-16 rounded border border-signal-red/20 bg-signal-red/5 overflow-hidden flex flex-col items-center justify-center"><div class="text-[7px] font-mono text-white/40 leading-tight text-center">DRAFT-v3-FINAL.xlsx<br><span class="text-signal-red/60">#REF! ???</span></div><p class="text-[8px] text-white/40 mt-0.5">Before</p></div>
+<span class="text-brand-lime text-2xl">→</span>
+<div class="flex-shrink-0 w-28 h-16 rounded border border-brand-lime/20 bg-brand-lime/5 overflow-hidden flex flex-col items-center justify-center" style="box-shadow:0 0 20px rgba(164,234,73,.1)"><div class="text-[7px] font-mono leading-tight text-center"><span class="text-brand-lime font-bold">&#9679; LIVE</span> <span class="text-white/80">$84K</span><br><span class="text-brand-lime">58.7%</span></div><p class="text-[8px] text-brand-lime mt-0.5">After</p></div>
+</div>
+<div class="mt-8 anim d3"><a href="#" class="inline-block bg-brand-lime text-brand-teal font-bold text-base md:text-lg px-8 md:px-10 py-3.5 md:py-4 rounded-full" style="animation:pulseGlow 3s ease-in-out infinite;box-shadow:0 4px 24px rgba(164,234,73,.3)">Start Free Trial →</a></div>
+<p class="text-sm text-white/50 mt-3 anim d3">Free tier. No credit card. See your margins in 10 minutes.</p>
+<div class="mt-6 flex flex-col md:flex-row items-center gap-6 anim d4">
+<div class="w-24 h-24 bg-white rounded-lg flex items-center justify-center"><svg viewBox="0 0 100 100" class="w-20 h-20"><rect width="100" height="100" fill="white"/><g fill="#0a0a0a"><rect x="10" y="10" width="8" height="8"/><rect x="18" y="10" width="8" height="8"/><rect x="26" y="10" width="8" height="8"/><rect x="34" y="10" width="8" height="8"/><rect x="10" y="18" width="8" height="8"/><rect x="34" y="18" width="8" height="8"/><rect x="10" y="26" width="8" height="8"/><rect x="34" y="26" width="8" height="8"/><rect x="10" y="34" width="8" height="8"/><rect x="18" y="34" width="8" height="8"/><rect x="26" y="34" width="8" height="8"/><rect x="34" y="34" width="8" height="8"/><rect x="50" y="10" width="8" height="8"/><rect x="58" y="18" width="8" height="8"/><rect x="50" y="26" width="8" height="8"/><rect x="58" y="34" width="8" height="8"/><rect x="66" y="10" width="8" height="8"/><rect x="74" y="10" width="8" height="8"/><rect x="82" y="10" width="8" height="8"/><rect x="66" y="18" width="8" height="8"/><rect x="82" y="18" width="8" height="8"/><rect x="66" y="26" width="8" height="8"/><rect x="82" y="26" width="8" height="8"/><rect x="66" y="34" width="8" height="8"/><rect x="74" y="34" width="8" height="8"/><rect x="82" y="34" width="8" height="8"/><rect x="10" y="50" width="8" height="8"/><rect x="18" y="58" width="8" height="8"/><rect x="26" y="50" width="8" height="8"/><rect x="10" y="66" width="8" height="8"/><rect x="34" y="66" width="8" height="8"/><rect x="10" y="74" width="8" height="8"/><rect x="26" y="74" width="8" height="8"/><rect x="34" y="74" width="8" height="8"/><rect x="10" y="82" width="8" height="8"/><rect x="18" y="82" width="8" height="8"/><rect x="26" y="82" width="8" height="8"/><rect x="34" y="82" width="8" height="8"/><rect x="50" y="50" width="8" height="8"/><rect x="58" y="58" width="8" height="8"/><rect x="66" y="50" width="8" height="8"/><rect x="50" y="66" width="8" height="8"/><rect x="74" y="66" width="8" height="8"/><rect x="82" y="74" width="8" height="8"/><rect x="58" y="82" width="8" height="8"/><rect x="74" y="82" width="8" height="8"/><rect x="82" y="82" width="8" height="8"/></g></svg></div>
+<div class="text-center md:text-left"><p class="text-sm md:text-base font-medium text-white">useunitpay.com</p><p class="text-sm text-white/50 mt-1">hello@useunitpay.com</p></div>
+</div>
+<p class="text-[13px] font-medium text-brand-lime mt-2 anim d4">This is your dashboard. Not a demo. Scan.</p>
+<div class="mt-6 anim d5"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-brand-lime flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-brand-teal"></div></div><span class="text-white font-bold text-xl tracking-tight">UnitPay</span></div></div>
+<div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-medium">14 / 14</div>
+<div class="absolute bottom-5 md:bottom-6 right-6 md:right-20"><div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div></div>
+</section>
+
+<script>
+(function(){
+const slides=document.querySelectorAll('.slide');
+const bar=document.getElementById('pBar');
+const nav=document.getElementById('navDots');
+const total=slides.length;
+// build nav dots
+for(let i=0;i<total;i++){const b=document.createElement('button');b.className='nav-dot';b.setAttribute('aria-label','Go to slide '+(i+1));b.addEventListener('click',()=>slides[i].scrollIntoView({behavior:'smooth'}));nav.appendChild(b);}
+const dots=nav.querySelectorAll('.nav-dot');
+// intersection observer for animations
+const animObs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('v');});},{threshold:.15});
+document.querySelectorAll('.anim').forEach(el=>animObs.observe(el));
+// margin fill bars
+const fillObs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting){e.target.style.width=e.target.dataset.width+'%';}});},{threshold:.3});
+document.querySelectorAll('.margin-fill').forEach(el=>fillObs.observe(el));
+// scroll tracking
+let ticking=false;
+function onScroll(){
+const h=document.documentElement;
+const scrollTop=h.scrollTop||document.body.scrollTop;
+const scrollHeight=h.scrollHeight-h.clientHeight;
+const pct=scrollHeight>0?(scrollTop/scrollHeight)*100:0;
+bar.style.width=pct+'%';
+// active dot
+let active=0;
+slides.forEach((s,i)=>{const rect=s.getBoundingClientRect();if(rect.top<window.innerHeight*.5)active=i;});
+dots.forEach((d,i)=>{d.classList.toggle('active',i===active);});
+ticking=false;
+}
+window.addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(onScroll);ticking=true;}},false);
+onScroll();
+})();
+</script>
+</body>
+</html>

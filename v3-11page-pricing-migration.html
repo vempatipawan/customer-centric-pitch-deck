@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en" style="scroll-snap-type: y mandatory; scroll-behavior: smooth;">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UnitPay — The Pricing Migration</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              teal: '#003024',
+              lime: '#a4ea49',
+              mint: '#e1ead3',
+              black: '#0a0a0a',
+              danger: '#ff3b3b',
+              amber: '#f5a623',
+              slate: '#6b7280',
+              blue: '#3b82f6',
+              card: '#111111',
+              border: '#1f1f1f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Base font sizing */
+    html { font-size: 14px; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (min-width: 1280px) { html { font-size: 16px; } }
+
+    html {
+      overflow-y: scroll;
+      scrollbar-width: none;
+    }
+    ::-webkit-scrollbar { width: 0; height: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Scroll snap */
+    html { scroll-snap-type: y mandatory; }
+    .slide { scroll-snap-align: start; }
+
+    /* Grain/Noise overlay */
+    .grain-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+    /* Dark slide gradient */
+    .bg-dark-gradient {
+      background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);
+    }
+
+    /* Teal slide gradient */
+    .bg-teal-gradient {
+      background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);
+    }
+
+    /* Fade-in-up animation */
+    .fade-in-up {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .fade-in-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Pulse animation for CTA */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0px 4px 24px rgba(164, 234, 73, 0.3); }
+      50% { box-shadow: 0px 4px 40px rgba(164, 234, 73, 0.5); }
+    }
+    .cta-pulse { animation: pulse-glow 2s ease-in-out infinite; }
+
+    /* Pulse for live indicator */
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .live-dot { animation: live-pulse 1.5s ease-in-out infinite; }
+
+    /* Nav dots */
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .nav-dot.active {
+      background: #a4ea49;
+      box-shadow: 0 0 8px rgba(164, 234, 73, 0.4);
+    }
+
+    /* Progress bar */
+    #progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: #a4ea49;
+      z-index: 9998;
+      transition: width 0.15s ease;
+    }
+
+    /* Fork glow */
+    .path-glow {
+      filter: drop-shadow(0px 0px 8px rgba(164, 234, 73, 0.3));
+    }
+
+    /* Strikethrough for old way */
+    .old-way {
+      text-decoration: line-through;
+      color: #ff3b3b;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- GRAIN OVERLAY                                                 -->
+<!-- ============================================================ -->
+<div class="grain-overlay"></div>
+
+<!-- ============================================================ -->
+<!-- NAVIGATION DOTS (Desktop only)                                -->
+<!-- ============================================================ -->
+<div id="nav-dots" class="fixed right-4 top-1/2 -translate-y-1/2 z-50 hidden md:flex flex-col gap-3">
+  <div class="nav-dot" data-slide="0"></div>
+  <div class="nav-dot" data-slide="1"></div>
+  <div class="nav-dot" data-slide="2"></div>
+  <div class="nav-dot" data-slide="3"></div>
+  <div class="nav-dot" data-slide="4"></div>
+  <div class="nav-dot" data-slide="5"></div>
+  <div class="nav-dot" data-slide="6"></div>
+  <div class="nav-dot" data-slide="7"></div>
+  <div class="nav-dot" data-slide="8"></div>
+  <div class="nav-dot" data-slide="9"></div>
+  <div class="nav-dot" data-slide="10"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PROGRESS BAR                                                  -->
+<!-- ============================================================ -->
+<div id="progress-bar" style="width: 0%;"></div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 01 — THE FORK IN THE ROAD (HOOK)                        -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-01">
+  <!-- Subtle upward green gradient -->
+  <div class="absolute inset-0 opacity-[0.08]" style="background: linear-gradient(to top right, #003024, transparent);"></div>
+
+  <div class="relative z-10 w-full max-w-5xl mx-auto text-center">
+    <!-- Logo -->
+    <div class="fade-in-up mb-8">
+      <svg width="120" height="32" viewBox="0 0 120 32" class="mx-auto">
+        <text x="0" y="24" fill="#ffffff" font-family="Inter" font-weight="800" font-size="24" letter-spacing="-0.02em">UnitPay</text>
+      </svg>
+    </div>
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-4" style="transition-delay: 0.1s;">
+      <h1 class="leading-tight">
+        <span class="block text-white/60 font-bold" style="font-size: clamp(1.75rem, 4vw, 2.75rem);">Seat-based pricing made you
+          <span class="text-white font-extrabold">$2M.</span>
+        </span>
+        <span class="block text-white font-bold" style="font-size: clamp(1.75rem, 4vw, 2.75rem);">Usage-based will make you
+          <span class="font-extrabold" style="font-size: clamp(2.25rem, 5vw, 3.5rem); color: #a4ea49; text-shadow: 0 0 30px rgba(164,234,73,0.15);">$10M.</span>
+        </span>
+      </h1>
+    </div>
+
+    <!-- Subtext -->
+    <div class="fade-in-up mb-10" style="transition-delay: 0.2s;">
+      <p class="text-lg md:text-xl font-medium" style="color: #f5a623;">If your billing can handle it.</p>
+    </div>
+
+    <!-- Growth Curve Fork SVG -->
+    <div class="fade-in-up w-full max-w-4xl mx-auto" style="transition-delay: 0.4s;">
+      <svg viewBox="0 0 800 280" class="w-full" xmlns="http://www.w3.org/2000/svg">
+        <!-- Grid lines -->
+        <line x1="80" y1="40" x2="80" y2="240" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="80" y1="240" x2="760" y2="240" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="80" y1="40" x2="760" y2="40" stroke="#1f1f1f" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.3"/>
+        <line x1="80" y1="140" x2="760" y2="140" stroke="#1f1f1f" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.3"/>
+
+        <!-- Y-axis labels -->
+        <text x="28" y="148" fill="#ffffff" font-family="Inter" font-size="12" font-weight="700">$2M</text>
+        <text x="22" y="48" fill="#a4ea49" font-family="Inter" font-size="12" font-weight="700">$10M</text>
+
+        <!-- Base curve (before fork) -->
+        <path d="M 80 220 C 140 218, 200 200, 320 160" stroke="#ffffff" stroke-width="3" fill="none"/>
+        <!-- Area fill under base curve -->
+        <path d="M 80 220 C 140 218, 200 200, 320 160 L 320 240 L 80 240 Z" fill="url(#baseGrad)" opacity="0.05"/>
+
+        <!-- Path A: Seat-based (flat/declining dashed) -->
+        <path d="M 320 160 C 420 158, 520 162, 720 175" stroke="#6b7280" stroke-width="2" stroke-dasharray="8,6" fill="none" opacity="0.6"/>
+        <text x="680" y="195" fill="#6b7280" font-family="Inter" font-size="11" opacity="0.6">Seat-based</text>
+
+        <!-- Path B: Usage-based (exponential) -->
+        <path d="M 320 160 C 380 140, 480 90, 720 42" stroke="#a4ea49" stroke-width="3" fill="none" class="path-glow"/>
+        <!-- Area fill between paths -->
+        <path d="M 320 160 C 380 140, 480 90, 720 42 L 720 175 C 520 162, 420 158, 320 160 Z" fill="#a4ea49" opacity="0.03"/>
+        <!-- Area under Path B -->
+        <path d="M 320 160 C 380 140, 480 90, 720 42 L 720 240 L 320 240 Z" fill="url(#limeGrad)" opacity="0.06"/>
+        <text x="700" y="35" fill="#a4ea49" font-family="Inter" font-size="14" font-weight="800">$10M</text>
+        <text x="668" y="55" fill="#a4ea49" font-family="Inter" font-size="10" opacity="0.7">Usage-based</text>
+
+        <!-- Gap annotation -->
+        <line x1="580" y1="72" x2="580" y2="168" stroke="#a4ea49" stroke-width="1" opacity="0.4" stroke-dasharray="3,3"/>
+        <text x="592" y="124" fill="#a4ea49" font-family="Inter" font-size="10" font-weight="500" opacity="0.6">5x revenue gap</text>
+
+        <!-- Fork point -->
+        <circle cx="320" cy="160" r="6" fill="#ffffff"/>
+        <circle cx="320" cy="160" r="12" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.3"/>
+
+        <!-- YOU ARE HERE label -->
+        <text x="280" y="196" fill="#ffffff" font-family="Inter" font-size="9" font-weight="700" letter-spacing="0.1em">YOU ARE HERE</text>
+        <line x1="320" y1="172" x2="320" y2="186" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+
+        <!-- Gradients -->
+        <defs>
+          <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="limeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#a4ea49" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#a4ea49" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">01 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 02 — THE EVOLUTION TIMELINE (PROBLEM)                   -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-teal-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-02">
+  <div class="relative z-10 w-full max-w-5xl mx-auto text-center">
+    <!-- Headline -->
+    <div class="fade-in-up mb-14">
+      <h2 class="font-extrabold leading-tight" style="font-size: clamp(2rem, 4.5vw, 3.5rem);">
+        Your pricing <span style="color: #a4ea49;">evolved.</span><br/>
+        Your billing <span style="color: #ff3b3b;">didn't.</span>
+      </h2>
+    </div>
+
+    <!-- Evolution Timeline -->
+    <div class="fade-in-up relative" style="transition-delay: 0.2s;">
+      <!-- Timeline line -->
+      <div class="hidden md:block absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-brand-lime/40" style="width: 70%; top: 12px;"></div>
+
+      <div class="flex flex-col md:flex-row items-center md:items-start justify-center gap-6 md:gap-8">
+        <!-- Era 1: 2020 -->
+        <div class="fade-in-up w-full md:w-48 opacity-60" style="transition-delay: 0.3s;">
+          <!-- Node -->
+          <div class="hidden md:flex justify-center mb-4">
+            <div class="w-3 h-3 rounded-full bg-white/40"></div>
+          </div>
+          <div class="rounded-xl p-5 border" style="background: #002a1f; border-color: rgba(255,255,255,0.1);">
+            <p class="text-xs font-bold tracking-wider text-white/40 mb-2">2020</p>
+            <p class="text-lg font-bold text-white/50">$99/seat/mo</p>
+            <p class="text-sm text-white/40 mt-1">— simple</p>
+            <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white/40">SIMPLE</span>
+          </div>
+        </div>
+
+        <!-- Era 2: 2023 -->
+        <div class="fade-in-up w-full md:w-56 opacity-80" style="transition-delay: 0.45s;">
+          <div class="hidden md:flex justify-center mb-4">
+            <div class="w-3 h-3 rounded-full bg-white"></div>
+          </div>
+          <div class="rounded-xl p-5 border" style="background: #002a1f; border-color: rgba(255,255,255,0.2);">
+            <p class="text-xs font-bold tracking-wider text-white mb-2">2023</p>
+            <p class="text-lg font-bold text-white">$99/seat</p>
+            <p class="text-base text-white/70 mt-1" style="color: #f5a623;">+ API overages</p>
+            <p class="text-sm text-white/70 mt-1">— manageable</p>
+            <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(245,166,35,0.15); color: #f5a623;">MANAGEABLE</span>
+          </div>
+        </div>
+
+        <!-- Era 3: 2026 -->
+        <div class="fade-in-up w-full md:w-72" style="transition-delay: 0.6s;">
+          <div class="hidden md:flex justify-center mb-4">
+            <div class="w-3 h-3 rounded-full" style="background: #a4ea49;"></div>
+          </div>
+          <div class="rounded-xl p-5 border" style="background: #002a1f; border-color: rgba(255,59,59,0.3);">
+            <p class="text-xs font-bold tracking-wider mb-2" style="color: #a4ea49;">2026</p>
+            <p class="text-base font-bold text-white">Base fee</p>
+            <p class="text-base font-bold text-white">+ per-token</p>
+            <p class="text-base font-bold text-white">+ compute</p>
+            <p class="text-base font-bold text-white">+ seats</p>
+            <p class="text-base font-bold text-white">+ credits</p>
+            <p class="text-base font-bold" style="color: #ff3b3b;">+ enterprise custom</p>
+            <p class="text-sm italic mt-2" style="color: #ff3b3b;">— impossible with Stripe</p>
+            <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(255,59,59,0.15); color: #ff3b3b;">IMPOSSIBLE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subtext -->
+    <div class="fade-in-up mt-10 max-w-2xl mx-auto" style="transition-delay: 0.8s;">
+      <p class="text-base md:text-lg text-white/70">
+        Hybrid pricing needs hybrid infrastructure.<br class="hidden md:block"/>
+        Bolting usage onto subscription tools is duct tape, not architecture.
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">02 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 03 — PRICE TOO HIGH / PRICE TOO LOW (STAKES)            -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-03">
+  <!-- Danger radial glow -->
+  <div class="absolute inset-0 opacity-[0.06]" style="background: radial-gradient(ellipse at center, #ff3b3b, transparent 70%);"></div>
+
+  <div class="relative z-10 w-full max-w-5xl mx-auto text-center">
+    <!-- Headline -->
+    <div class="fade-in-up mb-12">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem);">
+        Get the migration <span style="color: #ff3b3b;">wrong</span><br/>
+        and you lose <span style="color: #ff3b3b;">both ways.</span>
+      </h2>
+    </div>
+
+    <!-- Risk Boxes -->
+    <div class="flex flex-col md:flex-row items-stretch justify-center gap-6 md:gap-10 mb-10">
+      <!-- Risk Box A: Price Too High -->
+      <div class="fade-in-up flex-1 max-w-lg rounded-2xl p-7 text-left" style="background: rgba(255,59,59,0.05); border: 1px solid rgba(255,59,59,0.2); transition-delay: 0.15s;">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xl" style="color: #ff3b3b;">&#9650;</span>
+          <span class="text-sm font-bold tracking-widest uppercase" style="color: #ff3b3b;">Price Too High</span>
+        </div>
+        <p class="text-lg md:text-xl text-white mb-2">
+          Enterprise customers see a <span class="font-bold" style="color: #ff3b3b;">40%</span> bill increase
+        </p>
+        <p class="text-sm text-white/50 mb-6">They start evaluating competitors immediately</p>
+        <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider" style="background: rgba(255,59,59,0.1); color: #ff3b3b;">&rarr; Churn</span>
+      </div>
+
+      <!-- Risk Box B: Price Too Low -->
+      <div class="fade-in-up flex-1 max-w-lg rounded-2xl p-7 text-left" style="background: rgba(255,59,59,0.05); border: 1px solid rgba(255,59,59,0.2); transition-delay: 0.3s;">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-xl" style="color: #ff3b3b;">&#9660;</span>
+          <span class="text-sm font-bold tracking-widest uppercase" style="color: #ff3b3b;">Price Too Low</span>
+        </div>
+        <p class="text-lg md:text-xl text-white mb-2">
+          Power users consume <span class="font-bold" style="color: #ff3b3b;">10x</span> resources at flat rate
+        </p>
+        <p class="text-sm text-white/50 mb-6">Margins collapse invisibly &mdash; you find out quarterly</p>
+        <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider" style="background: rgba(255,59,59,0.1); color: #ff3b3b;">&rarr; Bleed</span>
+      </div>
+    </div>
+
+    <!-- Solution Hint -->
+    <div class="fade-in-up" style="transition-delay: 0.5s;">
+      <p class="text-xl md:text-2xl text-white mb-1">The only way to get it right?</p>
+      <p class="text-xl md:text-2xl font-extrabold" style="color: #a4ea49;">Simulate before you ship.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">03 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 04 — WHAT OTHERS GOT WRONG (COMPETITOR LANDSCAPE) [NEW] -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-04">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+    <!-- Headline -->
+    <div class="fade-in-up text-center mb-10">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 2.5rem);">
+        Every Billing Tool Was Built for <span class="text-white/50">One Era.</span><br/>
+        Not <span style="color: #a4ea49;">the Transition.</span>
+      </h2>
+    </div>
+
+    <!-- Competitor Comparison Table -->
+    <div class="fade-in-up w-full max-w-4xl mx-auto rounded-2xl overflow-hidden" style="background: #0a0a0a; border: 1px solid #1f1f1f; transition-delay: 0.15s;">
+      <table class="w-full">
+        <thead>
+          <tr style="background: #111111;">
+            <th class="text-left px-6 py-3 text-xs font-bold uppercase tracking-wider text-white/50">Tool</th>
+            <th class="text-left px-6 py-3 text-xs font-bold uppercase tracking-wider text-white/50">Built For</th>
+            <th class="text-left px-6 py-3 text-xs font-bold uppercase tracking-wider text-white/50">Migration Support</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Stripe Billing -->
+          <tr class="border-b" style="border-color: #1f1f1f;">
+            <td class="px-6 py-4 text-base font-medium text-white">Stripe Billing</td>
+            <td class="px-6 py-4 text-sm text-white/50">Subscriptions only</td>
+            <td class="px-6 py-4 text-sm font-bold" style="color: #ff3b3b;">&#10005; None</td>
+          </tr>
+          <!-- Chargebee -->
+          <tr class="border-b" style="border-color: #1f1f1f;">
+            <td class="px-6 py-4 text-base font-medium text-white">Chargebee</td>
+            <td class="px-6 py-4 text-sm text-white/50">Subscriptions + basic usage</td>
+            <td class="px-6 py-4 text-sm font-bold" style="color: #ff3b3b;">&#10005; None</td>
+          </tr>
+          <!-- Orb -->
+          <tr class="border-b" style="border-color: #1f1f1f;">
+            <td class="px-6 py-4 text-base font-medium text-white">Orb</td>
+            <td class="px-6 py-4 text-sm text-white/50">Usage-based only</td>
+            <td class="px-6 py-4 text-sm font-bold" style="color: #ff3b3b;">&#10005; No hybrid support</td>
+          </tr>
+          <!-- Metronome -->
+          <tr class="border-b" style="border-color: #1f1f1f;">
+            <td class="px-6 py-4 text-base font-medium text-white">Metronome</td>
+            <td class="px-6 py-4 text-sm text-white/50">Usage-based metering</td>
+            <td class="px-6 py-4 text-sm font-bold" style="color: #ff3b3b;">&#10005; No pricing simulation</td>
+          </tr>
+          <!-- UnitPay (highlighted) -->
+          <tr style="background: rgba(164,234,73,0.05); border: 1px solid rgba(164,234,73,0.15);">
+            <td class="px-6 py-5 text-base font-bold" style="color: #a4ea49;">UnitPay</td>
+            <td class="px-6 py-5 text-sm font-medium text-white">BOTH + the transition between them</td>
+            <td class="px-6 py-5 text-sm font-bold" style="color: #a4ea49;">&#10003; Full migration engine</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- The Gap Statement -->
+    <div class="fade-in-up mt-8 max-w-3xl mx-auto" style="transition-delay: 0.4s;">
+      <div class="py-6 px-8 rounded-r-xl" style="background: #111111; border-left: 3px solid #a4ea49;">
+        <p class="text-base md:text-lg font-medium text-white">
+          No one built a tool for the <span class="font-bold" style="color: #a4ea49;">MIGRATION</span> itself.
+          They built for the destination.
+          UnitPay is the only platform built for the <span class="font-bold" style="color: #a4ea49;">JOURNEY.</span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">04 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 05 — THE SOLUTION (FOUR CAPABILITIES)                   -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-teal-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-05">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+    <!-- Label -->
+    <div class="fade-in-up mb-4">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest" style="background: #a4ea49; color: #003024;">The Bridge</span>
+    </div>
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-12" style="transition-delay: 0.1s;">
+      <h2 class="leading-tight">
+        <span class="block font-bold text-white" style="font-size: clamp(1.75rem, 4vw, 3rem);">Built for the pricing model</span>
+        <span class="block font-extrabold" style="font-size: clamp(1.75rem, 4vw, 3rem); color: #a4ea49;">you're moving to.</span>
+        <span class="block font-normal text-white/40" style="font-size: clamp(1.25rem, 2.5vw, 2rem);">Not the one you're leaving.</span>
+      </h2>
+    </div>
+
+    <!-- Capability Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <!-- Card 1: Hybrid Billing -->
+      <div class="fade-in-up rounded-2xl p-6 border" style="background: #002a1f; border-color: rgba(164,234,73,0.1); transition-delay: 0.2s;">
+        <svg class="mb-4" width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect x="4" y="4" width="20" height="6" rx="2" fill="#a4ea49" opacity="0.8"/>
+          <rect x="4" y="12" width="20" height="6" rx="2" fill="#a4ea49" opacity="0.5"/>
+          <rect x="4" y="20" width="20" height="6" rx="2" fill="#a4ea49" opacity="0.3"/>
+        </svg>
+        <h3 class="text-sm font-bold uppercase tracking-wider mb-3" style="color: #a4ea49;">Hybrid Billing</h3>
+        <p class="text-sm text-white/80 mb-3">Seat + usage + credits in one plan. Launch any pricing model without rewriting code.</p>
+        <p class="text-xs text-white/40">Supports: tiered, volume, package, graduated, prepaid, custom</p>
+      </div>
+
+      <!-- Card 2: Pricing Simulation -->
+      <div class="fade-in-up rounded-2xl p-6 border" style="background: #002a1f; border-color: rgba(164,234,73,0.1); transition-delay: 0.35s;">
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M10 4h8l2 8-4 4h-4l-4-4 2-8z" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+            <path d="M10 16v6a2 2 0 002 2h4a2 2 0 002-2v-6" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+          </svg>
+          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase" style="background: #a4ea49; color: #003024;">Unique</span>
+        </div>
+        <h3 class="text-sm font-bold uppercase tracking-wider mb-3" style="color: #a4ea49;">Pricing Simulation</h3>
+        <p class="text-sm text-white/80 mb-3">Test new pricing on 12 months of historical data. See revenue impact by cohort before you deploy.</p>
+        <p class="text-xs font-bold" style="color: #a4ea49;">No other billing platform offers pricing simulation</p>
+      </div>
+
+      <!-- Card 3: Real-Time Margins -->
+      <div class="fade-in-up rounded-2xl p-6 border" style="background: #002a1f; border-color: rgba(164,234,73,0.1); transition-delay: 0.5s;">
+        <svg class="mb-4" width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <polyline points="4,20 10,14 16,18 24,8" stroke="#a4ea49" stroke-width="2" fill="none"/>
+          <circle cx="24" cy="8" r="2" fill="#a4ea49"/>
+        </svg>
+        <h3 class="text-sm font-bold uppercase tracking-wider mb-3" style="color: #a4ea49;">Real-Time Margins</h3>
+        <p class="text-sm text-white/80 mb-3">Per-customer, per-feature, per-API-call. Know your margins before your board does.</p>
+        <p class="text-xs text-white/40">Cost attribution across LLM, compute, storage, bandwidth</p>
+      </div>
+    </div>
+
+    <!-- Card 4: Full Width -->
+    <div class="fade-in-up rounded-xl px-6 py-4 border flex flex-col md:flex-row items-start md:items-center gap-3" style="background: #002a1f; border-color: rgba(164,234,73,0.1); transition-delay: 0.65s;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="shrink-0">
+        <path d="M13 2L4.5 14H12l-1 8 8.5-12H12l1-8z" fill="#a4ea49"/>
+      </svg>
+      <div class="flex flex-wrap items-baseline gap-x-2">
+        <span class="text-sm font-bold uppercase" style="color: #a4ea49;">10-Minute Setup</span>
+        <span class="text-sm text-white/80">Not a <span class="old-way text-xs">3-month</span> migration project. Works alongside Stripe. No rip-and-replace.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">05 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 06 — THE PRICE LAB (PRODUCT #1)                         -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-06">
+  <!-- Lime radial glow -->
+  <div class="absolute inset-0 opacity-[0.04]" style="background: radial-gradient(ellipse at center, #a4ea49, transparent 70%);"></div>
+
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+    <!-- Label -->
+    <div class="fade-in-up mb-3">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest" style="background: #a4ea49; color: #003024;">Price Lab</span>
+    </div>
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-10" style="transition-delay: 0.1s;">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 2.75rem);">
+        Test your new pricing before<br/>a <span style="color: #a4ea49;">single customer</span> sees it.
+      </h2>
+    </div>
+
+    <!-- Simulation Mockup -->
+    <div class="fade-in-up w-full max-w-5xl mx-auto rounded-2xl overflow-hidden" style="background: #111111; border: 1px solid #1f1f1f; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition-delay: 0.25s;">
+      <!-- Window Chrome -->
+      <div class="flex items-center justify-between px-5 py-3 border-b" style="background: #0a0a0a; border-color: #1f1f1f;">
+        <div class="flex items-center gap-4">
+          <div class="flex gap-2">
+            <div class="w-3 h-3 rounded-full" style="background: #ff3b3b;"></div>
+            <div class="w-3 h-3 rounded-full" style="background: #f5a623;"></div>
+            <div class="w-3 h-3 rounded-full" style="background: #a4ea49;"></div>
+          </div>
+          <span class="text-sm font-medium text-white">Price Lab &mdash; Simulation Results</span>
+        </div>
+        <span class="text-xs text-white/40">Data: Last 12 months</span>
+      </div>
+
+      <!-- Panels -->
+      <div class="p-5 md:p-7 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Current Panel -->
+        <div class="rounded-xl p-5 border" style="background: #0a0a0a; border-color: #1f1f1f;">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold uppercase" style="background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">Current</span>
+            <span class="text-sm text-white/40">Per-Seat Pricing</span>
+          </div>
+          <div class="space-y-3 mb-5">
+            <div>
+              <p class="text-xs text-white/40 mb-1">ARR</p>
+              <p class="text-3xl font-extrabold text-white">$2.1M</p>
+            </div>
+            <div class="flex gap-6">
+              <div>
+                <p class="text-xs text-white/40 mb-1">Avg Margin</p>
+                <p class="text-xl font-bold" style="color: #f5a623;">45%</p>
+              </div>
+              <div>
+                <p class="text-xs text-white/40 mb-1">At-Risk Accts</p>
+                <p class="text-xl font-bold" style="color: #ff3b3b;">12</p>
+              </div>
+            </div>
+          </div>
+          <!-- Mini chart (flat) -->
+          <svg viewBox="0 0 200 60" class="w-full" style="max-height: 60px;">
+            <polyline points="0,40 30,38 60,42 90,39 120,41 150,40 180,42 200,43" stroke="#6b7280" stroke-width="2" fill="none"/>
+            <path d="M 0,40 30,38 60,42 90,39 120,41 150,40 180,42 200,43 L 200,60 0,60 Z" fill="#6b7280" opacity="0.05"/>
+          </svg>
+        </div>
+
+        <!-- Proposed Panel -->
+        <div class="rounded-xl p-5 border" style="background: #0a0a0a; border-color: rgba(164,234,73,0.3);">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold uppercase" style="background: #a4ea49; color: #003024;">Proposed</span>
+            <span class="text-sm" style="color: #a4ea49;">Hybrid: Base + Usage</span>
+            <span class="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold" style="background: #a4ea49; color: #003024;">+33% ARR</span>
+          </div>
+          <div class="space-y-3 mb-5">
+            <div>
+              <p class="text-xs text-white/40 mb-1">ARR</p>
+              <p class="text-3xl font-extrabold" style="color: #a4ea49;">$2.8M</p>
+            </div>
+            <div class="flex gap-6">
+              <div>
+                <p class="text-xs text-white/40 mb-1">Avg Margin</p>
+                <p class="text-xl font-bold" style="color: #a4ea49;">62%</p>
+              </div>
+              <div>
+                <p class="text-xs text-white/40 mb-1">At-Risk Accts</p>
+                <p class="text-xl font-bold" style="color: #a4ea49;">3</p>
+              </div>
+            </div>
+          </div>
+          <!-- Mini chart (growing) -->
+          <svg viewBox="0 0 200 60" class="w-full" style="max-height: 60px;">
+            <polyline points="0,50 30,46 60,42 90,36 120,28 150,18 180,10 200,5" stroke="#a4ea49" stroke-width="2" fill="none"/>
+            <path d="M 0,50 30,46 60,42 90,36 120,28 150,18 180,10 200,5 L 200,60 0,60 Z" fill="#a4ea49" opacity="0.08"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Delta badges -->
+      <div class="hidden md:flex justify-center gap-4 pb-4 -mt-2">
+        <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(164,234,73,0.12); color: #a4ea49;">+$700K ARR</span>
+        <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(164,234,73,0.12); color: #a4ea49;">+17pts margin</span>
+        <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: rgba(164,234,73,0.12); color: #a4ea49;">-75% at-risk</span>
+      </div>
+
+      <!-- Mockup footer -->
+      <div class="flex items-center justify-center gap-2 px-5 pb-4">
+        <span class="text-xs text-white/30">Simulation based on 12 months of actual usage data</span>
+      </div>
+    </div>
+
+    <!-- Callout -->
+    <div class="fade-in-up text-center mt-8" style="transition-delay: 0.5s;">
+      <p class="text-lg md:text-xl font-extrabold" style="color: #a4ea49;">No other platform does this.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">06 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 07 — POST-MIGRATION ANALYTICS (PRODUCT #2) [NEW]        -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-07">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+    <!-- Headline -->
+    <div class="fade-in-up text-center mb-2">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 2.5rem);">
+        After the Migration: <span style="color: #a4ea49;">Full Revenue Clarity</span>
+      </h2>
+    </div>
+    <div class="fade-in-up text-center mb-8" style="transition-delay: 0.1s;">
+      <p class="text-sm md:text-base text-white/60">See subscription + usage + hybrid revenue in one view.</p>
+    </div>
+
+    <!-- Revenue Analytics Dashboard -->
+    <div class="fade-in-up w-full max-w-5xl mx-auto rounded-2xl overflow-hidden" style="background: #0a0a0a; border: 1px solid #1f1f1f; box-shadow: 0 16px 48px rgba(0,0,0,0.4); transition-delay: 0.2s;">
+      <!-- Dashboard header -->
+      <div class="flex items-center justify-between px-5 py-3 border-b" style="border-color: #1f1f1f;">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-medium text-white">Revenue Analytics</span>
+          <span class="flex items-center gap-1.5 text-xs font-bold" style="color: #a4ea49;">
+            <span class="inline-block w-2 h-2 rounded-full live-dot" style="background: #a4ea49;"></span>
+            LIVE
+          </span>
+        </div>
+        <span class="text-xs text-white/40">Q1 2026</span>
+      </div>
+
+      <div class="p-5 md:p-6">
+        <!-- Revenue Mix Bars -->
+        <div class="mb-6">
+          <div class="space-y-3">
+            <!-- Subscription -->
+            <div class="flex items-center gap-4">
+              <span class="text-xs text-white/60 w-28 text-right shrink-0">Subscription</span>
+              <div class="flex-1 h-5 rounded-full overflow-hidden" style="background: #1f1f1f;">
+                <div class="h-full rounded-full" style="width: 42%; background: #3b82f6;"></div>
+              </div>
+              <span class="text-xs font-bold text-white shrink-0 w-24">$420K <span class="text-white/40">(42%)</span></span>
+            </div>
+            <!-- Usage -->
+            <div class="flex items-center gap-4">
+              <span class="text-xs text-white/60 w-28 text-right shrink-0">Usage</span>
+              <div class="flex-1 h-5 rounded-full overflow-hidden" style="background: #1f1f1f;">
+                <div class="h-full rounded-full" style="width: 51%; background: #a4ea49;"></div>
+              </div>
+              <span class="text-xs font-bold text-white shrink-0 w-24">$510K <span class="text-white/40">(51%)</span></span>
+            </div>
+            <!-- Hybrid/Overage -->
+            <div class="flex items-center gap-4">
+              <span class="text-xs text-white/60 w-28 text-right shrink-0">Hybrid/Overage</span>
+              <div class="flex-1 h-5 rounded-full overflow-hidden" style="background: #1f1f1f;">
+                <div class="h-full rounded-full" style="width: 7%; background: #f59e0b;"></div>
+              </div>
+              <span class="text-xs font-bold text-white shrink-0 w-24">$70K <span class="text-white/40">(7%)</span></span>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-xs text-white/40">Total ARR:</span>
+            <span class="text-xl font-extrabold text-white">$1.0M</span>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Trend + Migration Tracker -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Trend Chart -->
+          <div class="rounded-xl p-4 border" style="background: #0a0a0a; border-color: #1f1f1f;">
+            <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">ARR Growth</p>
+            <svg viewBox="0 0 200 80" class="w-full" style="max-height: 80px;">
+              <!-- Axes -->
+              <line x1="0" y1="75" x2="200" y2="75" stroke="#1f1f1f" stroke-width="1"/>
+              <!-- Growth line -->
+              <path d="M 0,65 Q 30,60 60,52 T 120,35 T 200,10" stroke="#a4ea49" stroke-width="2" fill="none"/>
+              <path d="M 0,65 Q 30,60 60,52 T 120,35 T 200,10 L 200,75 L 0,75 Z" fill="#a4ea49" opacity="0.08"/>
+              <!-- Axis labels -->
+              <text x="10" y="74" fill="rgba(255,255,255,0.3)" font-family="Inter" font-size="7">Q1</text>
+              <text x="55" y="74" fill="rgba(255,255,255,0.3)" font-family="Inter" font-size="7">Q2</text>
+              <text x="110" y="74" fill="rgba(255,255,255,0.3)" font-family="Inter" font-size="7">Q3</text>
+              <text x="170" y="74" fill="rgba(255,255,255,0.3)" font-family="Inter" font-size="7">Q4</text>
+            </svg>
+          </div>
+
+          <!-- Migration Tracker -->
+          <div class="rounded-xl p-4 border" style="background: #0a0a0a; border-color: #1f1f1f;">
+            <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-4">Migration Tracker</p>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-medium text-white w-16 shrink-0">Migrated</span>
+                <div class="flex-1 h-3 rounded-full" style="background: #1f1f1f;">
+                  <div class="h-full rounded-full" style="width: 78%; background: #a4ea49;"></div>
+                </div>
+                <span class="text-xs font-bold shrink-0" style="color: #a4ea49;">78%</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-medium text-white w-16 shrink-0">Hybrid</span>
+                <div class="flex-1 h-3 rounded-full" style="background: #1f1f1f;">
+                  <div class="h-full rounded-full" style="width: 15%; background: #f59e0b;"></div>
+                </div>
+                <span class="text-xs font-bold shrink-0" style="color: #f59e0b;">15%</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-medium text-white w-16 shrink-0">Legacy</span>
+                <div class="flex-1 h-3 rounded-full" style="background: #1f1f1f;">
+                  <div class="h-full rounded-full" style="width: 7%; background: rgba(255,255,255,0.3);"></div>
+                </div>
+                <span class="text-xs font-bold text-white/50 shrink-0">7%</span>
+              </div>
+            </div>
+            <p class="text-xs italic text-white/40 mt-3">7% still on legacy &mdash; projected done by Q2</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three callout cards -->
+    <div class="fade-in-up grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 max-w-4xl mx-auto" style="transition-delay: 0.5s;">
+      <div class="rounded-xl p-4 border text-center" style="background: rgba(164,234,73,0.03); border-color: rgba(164,234,73,0.1);">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-1">Unified View</p>
+        <p class="text-xs text-white/50">Subscription + usage in one unified view</p>
+      </div>
+      <div class="rounded-xl p-4 border text-center" style="background: rgba(164,234,73,0.03); border-color: rgba(164,234,73,0.1);">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-1">Granular Tracking</p>
+        <p class="text-xs text-white/50">Usage + hybrid revenue growth tracked separately</p>
+      </div>
+      <div class="rounded-xl p-4 border text-center" style="background: rgba(164,234,73,0.03); border-color: rgba(164,234,73,0.1);">
+        <p class="text-xs font-bold text-white/60 uppercase tracking-wider mb-1">Per-Customer</p>
+        <p class="text-xs text-white/50">Migration progress tracked per customer</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">07 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 08 — A REAL MIGRATION STORY (CUSTOMER STORY) [NEW]      -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-teal-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-08">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+    <!-- Headline -->
+    <div class="fade-in-up text-center mb-10">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.5rem, 3.5vw, 2.5rem);">
+        They Migrated 200 Customers to Usage-Based Pricing.<br/>
+        <span style="color: #a4ea49;">Without Losing a Single One.</span>
+      </h2>
+    </div>
+
+    <!-- Four Phase Cards -->
+    <div class="fade-in-up grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" style="transition-delay: 0.15s;">
+      <!-- Phase 1: Simulate -->
+      <div class="rounded-xl p-5" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-white/40">Phase 1</span>
+        <h3 class="text-base font-bold text-white mt-1 mb-3">Simulate</h3>
+        <p class="text-sm text-white/70">Ran pricing simulation in Price Lab</p>
+        <p class="text-xs italic text-white/40 mt-3">"3 days"</p>
+      </div>
+
+      <!-- Phase 2: Pilot -->
+      <div class="rounded-xl p-5" style="background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.12);">
+        <span class="text-[10px] font-bold uppercase tracking-widest" style="color: #f59e0b;">Phase 2</span>
+        <h3 class="text-base font-bold text-white mt-1 mb-3">Pilot</h3>
+        <p class="text-sm text-white/70">Migrated 10% of customers</p>
+        <p class="text-xs italic text-white/40 mt-3">"2 weeks"</p>
+      </div>
+
+      <!-- Phase 3: Migrate -->
+      <div class="rounded-xl p-5" style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.12);">
+        <span class="text-[10px] font-bold uppercase tracking-widest" style="color: #3b82f6;">Phase 3</span>
+        <h3 class="text-base font-bold text-white mt-1 mb-3">Migrate</h3>
+        <p class="text-sm text-white/70">Rolled out to remaining 90%</p>
+        <p class="text-xs italic text-white/40 mt-3">"4 weeks"</p>
+      </div>
+
+      <!-- Result -->
+      <div class="rounded-xl p-5" style="background: rgba(164,234,73,0.05); border: 1px solid rgba(164,234,73,0.15);">
+        <span class="text-[10px] font-bold uppercase tracking-widest" style="color: #a4ea49;">Result</span>
+        <h3 class="text-base font-bold mt-1 mb-3" style="color: #a4ea49;">Thrive</h3>
+        <p class="text-sm text-white/70"><span class="font-bold" style="color: #a4ea49;">+47% ARR</span><br/><span class="font-bold" style="color: #a4ea49;">0% churn</span></p>
+        <p class="text-xs italic text-white/40 mt-3">"Month 3"</p>
+      </div>
+    </div>
+
+    <!-- Timeline connector -->
+    <div class="fade-in-up flex items-center justify-center gap-0 mb-8" style="transition-delay: 0.3s;">
+      <div class="w-3 h-3 rounded-full border-2 shrink-0" style="border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1);"></div>
+      <div class="flex-1 h-0.5 max-w-16" style="background: #a4ea49;"></div>
+      <div class="w-3 h-3 rounded-full border-2 shrink-0" style="border-color: #f59e0b; background: rgba(245,158,11,0.3);"></div>
+      <div class="flex-1 h-0.5 max-w-16" style="background: #a4ea49;"></div>
+      <div class="w-3 h-3 rounded-full border-2 shrink-0" style="border-color: #3b82f6; background: rgba(59,130,246,0.3);"></div>
+      <div class="flex-1 h-0.5 max-w-16" style="background: #a4ea49;"></div>
+      <div class="w-3 h-3 rounded-full shrink-0" style="background: #a4ea49;"></div>
+    </div>
+
+    <!-- Quote Block -->
+    <div class="fade-in-up max-w-3xl mx-auto mb-8" style="transition-delay: 0.45s;">
+      <div class="py-5 px-7 rounded-r-xl" style="background: #111111; border-left: 3px solid #a4ea49;">
+        <p class="text-sm md:text-base font-medium text-white/90 italic leading-relaxed">
+          "We used to think pricing migration meant losing customers. UnitPay's simulation showed us exactly what would happen before we changed a single price. <span class="font-bold not-italic" style="color: #a4ea49;">Zero surprises.</span>"
+        </p>
+        <p class="text-xs text-white/40 mt-3">&mdash; VP Engineering, Series B Dev Tools Company</p>
+      </div>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="fade-in-up grid grid-cols-3 gap-4 max-w-xl mx-auto" style="transition-delay: 0.6s;">
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">+47%</p>
+        <p class="text-xs text-white/50 mt-1">ARR increase</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">0%</p>
+        <p class="text-xs text-white/50 mt-1">churn during migration</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">6 weeks</p>
+        <p class="text-xs text-white/50 mt-1">total migration time</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">08 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 09 — TRACTION & MIGRATION JOURNEY                       -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-teal-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-09">
+  <div class="relative z-10 w-full max-w-5xl mx-auto text-center">
+    <!-- Headline -->
+    <div class="fade-in-up mb-14">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 3rem);">
+        Early movers are already<br/><span style="color: #a4ea49;">migrating</span> on UnitPay.
+      </h2>
+    </div>
+
+    <!-- Metric Row -->
+    <div class="fade-in-up grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 mb-14" style="transition-delay: 0.15s;">
+      <!-- Metric 1 -->
+      <div class="md:border-r" style="border-color: rgba(164,234,73,0.15);">
+        <p class="font-extrabold" style="font-size: clamp(2.5rem, 6vw, 4.5rem); color: #a4ea49;">3</p>
+        <p class="text-sm font-medium text-white mt-1">companies live</p>
+        <p class="text-xs text-white/40 mt-1">hybrid pricing models active</p>
+      </div>
+      <!-- Metric 2 -->
+      <div class="md:border-r" style="border-color: rgba(164,234,73,0.15);">
+        <p class="font-extrabold" style="font-size: clamp(2.5rem, 6vw, 4.5rem); color: #a4ea49;">10</p>
+        <p class="text-sm font-medium text-white mt-1">in migration queue</p>
+        <p class="text-xs text-white/40 mt-1">moving from seat-based to usage-based</p>
+      </div>
+      <!-- Metric 3 -->
+      <div class="md:border-r" style="border-color: rgba(164,234,73,0.15);">
+        <p class="font-extrabold" style="font-size: clamp(2.5rem, 6vw, 4.5rem); color: #a4ea49;">$200K</p>
+        <p class="text-sm font-medium text-white mt-1">raised</p>
+        <p class="text-xs text-white/40 mt-1">purpose-built for the pricing transition</p>
+      </div>
+      <!-- Metric 4 -->
+      <div>
+        <p class="font-extrabold" style="font-size: clamp(2.5rem, 6vw, 4.5rem); color: #a4ea49;">&lt;10</p>
+        <p class="text-sm font-medium text-white mt-1">minutes to go live</p>
+        <p class="text-xs text-white/40 mt-1">vs. weeks with legacy platforms</p>
+      </div>
+    </div>
+
+    <!-- Migration Journey -->
+    <div class="fade-in-up flex flex-col md:flex-row items-center justify-center gap-4 mb-8" style="transition-delay: 0.35s;">
+      <!-- Stage 1: Stripe Only -->
+      <div class="rounded-xl px-6 py-4 border text-center w-full md:w-52" style="background: #1a1a1a; border-color: rgba(255,255,255,0.1);">
+        <p class="text-sm font-medium text-white/40">Stripe Only</p>
+        <p class="text-xs text-white/30 mt-1">Your old stack</p>
+      </div>
+      <!-- Arrow -->
+      <div class="hidden md:flex items-center gap-1">
+        <div class="w-10 h-0.5" style="background: rgba(164,234,73,0.4);"></div>
+        <span style="color: rgba(164,234,73,0.4);">&#9654;</span>
+      </div>
+      <div class="md:hidden text-white/20 text-xl">&#8595;</div>
+      <!-- Stage 2: Hybrid -->
+      <div class="rounded-xl px-6 py-4 border text-center w-full md:w-52 relative" style="background: #1a1a1a; border-color: rgba(255,255,255,0.6);">
+        <p class="text-sm font-medium text-white">Stripe + UnitPay</p>
+        <p class="text-xs text-white/50 mt-1">Hybrid &mdash; today</p>
+        <span class="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-white text-black tracking-wider">You Are Here</span>
+      </div>
+      <!-- Arrow -->
+      <div class="hidden md:flex items-center gap-1">
+        <div class="w-10 h-0.5" style="background: rgba(164,234,73,0.4);"></div>
+        <span style="color: rgba(164,234,73,0.4);">&#9654;</span>
+      </div>
+      <div class="md:hidden text-white/20 text-xl">&#8595;</div>
+      <!-- Stage 3: UnitPay -->
+      <div class="rounded-xl px-6 py-4 border text-center w-full md:w-52" style="background: #1a1a1a; border-color: rgba(164,234,73,0.4); box-shadow: 0 0 20px rgba(164,234,73,0.05);">
+        <p class="text-sm font-medium" style="color: #a4ea49;">UnitPay</p>
+        <p class="text-xs text-white/50 mt-1">Full stack</p>
+      </div>
+    </div>
+
+    <!-- Closing line -->
+    <div class="fade-in-up" style="transition-delay: 0.5s;">
+      <p class="text-base text-white/70">We're purpose-built for this transition. Not retrofitted.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">09 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 10 — THE SAFETY NET (RISK MITIGATION) [NEW]             -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-10">
+  <!-- Subtle lime glow -->
+  <div class="absolute inset-0 opacity-[0.03]" style="background: radial-gradient(ellipse at center, #a4ea49, transparent 70%);"></div>
+
+  <div class="relative z-10 w-full max-w-4xl mx-auto">
+    <!-- Headline -->
+    <div class="fade-in-up text-center mb-10">
+      <h2 class="font-bold leading-tight" style="font-size: clamp(1.75rem, 4vw, 2.5rem);">
+        We Built <span style="color: #a4ea49;">Every Safety Net</span> a CFO Could Ask For
+      </h2>
+    </div>
+
+    <!-- Safety Feature Cards -->
+    <div class="space-y-3 mb-10">
+      <!-- Safety 1 -->
+      <div class="fade-in-up rounded-r-xl py-5 px-6 flex gap-4" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.1); border-left: 3px solid #a4ea49; transition-delay: 0.1s;">
+        <div class="shrink-0 mt-0.5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 1L2 5v4.5c0 5 3.4 9.2 8 10.5 4.6-1.3 8-5.5 8-10.5V5L10 1z" fill="#a4ea49" opacity="0.2" stroke="#a4ea49" stroke-width="1.5"/>
+            <path d="M7 10l2 2 4-4" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider mb-1" style="color: #a4ea49;">Simulate Before You Migrate</h3>
+          <p class="text-sm text-white/70">Run your entire customer base through the Price Lab before changing a single invoice. See exact revenue impact per customer.</p>
+        </div>
+      </div>
+
+      <!-- Safety 2 -->
+      <div class="fade-in-up rounded-r-xl py-5 px-6 flex gap-4" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.1); border-left: 3px solid #a4ea49; transition-delay: 0.25s;">
+        <div class="shrink-0 mt-0.5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 1L2 5v4.5c0 5 3.4 9.2 8 10.5 4.6-1.3 8-5.5 8-10.5V5L10 1z" fill="#a4ea49" opacity="0.2" stroke="#a4ea49" stroke-width="1.5"/>
+            <path d="M7 10l2 2 4-4" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider mb-1" style="color: #a4ea49;">Migrate in Waves</h3>
+          <p class="text-sm text-white/70">Start with 10% of customers. Validate results. Then expand. Never a big-bang migration.</p>
+        </div>
+      </div>
+
+      <!-- Safety 3 -->
+      <div class="fade-in-up rounded-r-xl py-5 px-6 flex gap-4" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.1); border-left: 3px solid #a4ea49; transition-delay: 0.4s;">
+        <div class="shrink-0 mt-0.5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 1L2 5v4.5c0 5 3.4 9.2 8 10.5 4.6-1.3 8-5.5 8-10.5V5L10 1z" fill="#a4ea49" opacity="0.2" stroke="#a4ea49" stroke-width="1.5"/>
+            <path d="M7 10l2 2 4-4" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider mb-1" style="color: #a4ea49;">Roll Back Any Time</h3>
+          <p class="text-sm text-white/70">Keep your old pricing model as a fallback. One click to revert any customer to their previous plan.</p>
+        </div>
+      </div>
+
+      <!-- Safety 4 -->
+      <div class="fade-in-up rounded-r-xl py-5 px-6 flex gap-4" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.1); border-left: 3px solid #a4ea49; transition-delay: 0.55s;">
+        <div class="shrink-0 mt-0.5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 1L2 5v4.5c0 5 3.4 9.2 8 10.5 4.6-1.3 8-5.5 8-10.5V5L10 1z" fill="#a4ea49" opacity="0.2" stroke="#a4ea49" stroke-width="1.5"/>
+            <path d="M7 10l2 2 4-4" stroke="#a4ea49" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wider mb-1" style="color: #a4ea49;">Real-Time Monitoring</h3>
+          <p class="text-sm text-white/70">Auto-alerts if churn spikes, margin drops, or usage patterns shift unexpectedly during migration.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing statement -->
+    <div class="fade-in-up text-center" style="transition-delay: 0.7s;">
+      <p class="text-base md:text-lg font-medium text-white">
+        The question isn't whether you can afford to migrate.<br/>
+        It's whether you can <span class="font-bold" style="color: #a4ea49;">afford not to.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">10 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 11 — CTA                                                -->
+<!-- ============================================================ -->
+<section class="slide min-h-screen bg-dark-gradient relative flex flex-col items-center justify-center px-6 py-12 overflow-hidden" id="slide-11">
+  <!-- Center radial glow -->
+  <div class="absolute inset-0 opacity-[0.05]" style="background: radial-gradient(ellipse at center, #a4ea49, transparent 60%);"></div>
+
+  <div class="relative z-10 w-full max-w-3xl mx-auto text-center">
+    <!-- Headline -->
+    <div class="fade-in-up mb-6">
+      <h2 class="font-extrabold leading-tight" style="font-size: clamp(2rem, 4.5vw, 3.5rem);">
+        Run your pricing migration<br/><span style="color: #a4ea49;">simulation</span> &mdash; free.
+      </h2>
+    </div>
+
+    <!-- Value props -->
+    <div class="fade-in-up mb-10 space-y-2" style="transition-delay: 0.1s;">
+      <p class="text-base md:text-lg text-white">
+        <span style="color: #a4ea49;">&#10003;</span> Upload your current pricing model
+      </p>
+      <p class="text-base md:text-lg text-white">
+        <span style="color: #a4ea49;">&#10003;</span> We simulate usage-based on <span style="color: #a4ea49;">YOUR</span> revenue
+      </p>
+      <p class="text-base md:text-lg text-white">
+        <span style="color: #a4ea49;">&#10003;</span> See the impact before you change a <span style="color: #a4ea49;">single invoice</span>
+      </p>
+    </div>
+
+    <!-- Mini Fork Callback -->
+    <div class="fade-in-up mb-4" style="transition-delay: 0.25s;">
+      <svg viewBox="0 0 400 100" class="w-full max-w-sm mx-auto" xmlns="http://www.w3.org/2000/svg">
+        <!-- Base curve -->
+        <path d="M 20 70 C 60 68, 100 60, 160 50" stroke="rgba(255,255,255,0.5)" stroke-width="2" fill="none"/>
+        <!-- Path A: faded flat -->
+        <path d="M 160 50 C 220 50, 280 54, 380 60" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="6,4" fill="none"/>
+        <!-- Path B: highlighted exponential -->
+        <path d="M 160 50 C 200 40, 280 20, 380 8" stroke="#a4ea49" stroke-width="2.5" fill="none" class="path-glow"/>
+        <path d="M 160 50 C 200 40, 280 20, 380 8 L 380 60 C 280 54, 220 50, 160 50 Z" fill="#a4ea49" opacity="0.04"/>
+        <!-- Fork point -->
+        <circle cx="160" cy="50" r="4" fill="#a4ea49"/>
+      </svg>
+    </div>
+    <div class="fade-in-up mb-8" style="transition-delay: 0.3s;">
+      <p class="text-sm font-medium" style="color: #a4ea49;">You've seen both paths. Pick the right one.</p>
+    </div>
+
+    <!-- CTA Button -->
+    <div class="fade-in-up mb-4" style="transition-delay: 0.4s;">
+      <a href="#" class="cta-pulse inline-block px-10 py-4 rounded-xl text-lg font-bold" style="background: #a4ea49; color: #003024; box-shadow: 0px 4px 24px rgba(164,234,73,0.3);">
+        Start Free Trial &rarr;
+      </a>
+    </div>
+
+    <div class="fade-in-up mb-10" style="transition-delay: 0.45s;">
+      <p class="text-xs text-white/40">Free tier. No credit card. See your simulation in 10 min.</p>
+    </div>
+
+    <!-- Contact Row -->
+    <div class="fade-in-up flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 mb-6" style="transition-delay: 0.55s;">
+      <!-- QR Placeholder -->
+      <div class="w-24 h-24 rounded-xl border flex items-center justify-center" style="background: #ffffff; border-color: #1f1f1f;">
+        <svg viewBox="0 0 80 80" width="72" height="72">
+          <!-- Simplified QR pattern -->
+          <rect x="4" y="4" width="24" height="24" fill="#000" rx="2"/>
+          <rect x="8" y="8" width="16" height="16" fill="#fff"/>
+          <rect x="12" y="12" width="8" height="8" fill="#000"/>
+          <rect x="52" y="4" width="24" height="24" fill="#000" rx="2"/>
+          <rect x="56" y="8" width="16" height="16" fill="#fff"/>
+          <rect x="60" y="12" width="8" height="8" fill="#000"/>
+          <rect x="4" y="52" width="24" height="24" fill="#000" rx="2"/>
+          <rect x="8" y="56" width="16" height="16" fill="#fff"/>
+          <rect x="12" y="60" width="8" height="8" fill="#000"/>
+          <rect x="32" y="4" width="4" height="4" fill="#000"/>
+          <rect x="36" y="8" width="4" height="4" fill="#000"/>
+          <rect x="32" y="16" width="4" height="4" fill="#000"/>
+          <rect x="40" y="12" width="4" height="4" fill="#000"/>
+          <rect x="44" y="4" width="4" height="4" fill="#000"/>
+          <rect x="32" y="32" width="4" height="4" fill="#000"/>
+          <rect x="40" y="36" width="4" height="4" fill="#000"/>
+          <rect x="52" y="32" width="4" height="4" fill="#000"/>
+          <rect x="60" y="40" width="4" height="4" fill="#000"/>
+          <rect x="32" y="44" width="4" height="4" fill="#000"/>
+          <rect x="40" y="52" width="4" height="4" fill="#000"/>
+          <rect x="52" y="52" width="12" height="12" fill="#000" rx="1"/>
+          <rect x="56" y="56" width="4" height="4" fill="#fff"/>
+          <rect x="68" y="52" width="8" height="8" fill="#000"/>
+          <rect x="52" y="68" width="8" height="8" fill="#000"/>
+          <rect x="64" y="64" width="8" height="8" fill="#000"/>
+        </svg>
+      </div>
+      <div class="text-left">
+        <p class="text-sm font-medium text-white">useunitpay.com</p>
+        <p class="text-sm text-white/50">hello@useunitpay.com</p>
+      </div>
+    </div>
+
+    <div class="fade-in-up mb-8" style="transition-delay: 0.6s;">
+      <p class="text-xs font-medium" style="color: #a4ea49;">Your pricing model, simulated. Scan to see both paths.</p>
+    </div>
+
+    <!-- Logo -->
+    <div class="fade-in-up" style="transition-delay: 0.65s;">
+      <svg width="160" height="40" viewBox="0 0 160 40" class="mx-auto">
+        <text x="20" y="30" fill="#ffffff" font-family="Inter" font-weight="800" font-size="30" letter-spacing="-0.02em">UnitPay</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 text-white/30 text-xs font-mono">11 / 11</div>
+  <div class="absolute bottom-6 right-6">
+    <svg width="20" height="20" viewBox="0 0 20 20"><text x="0" y="16" fill="rgba(255,255,255,0.3)" font-family="Inter" font-weight="800" font-size="14">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SCRIPTS                                                       -->
+<!-- ============================================================ -->
+<script>
+  // IntersectionObserver for fade-in-up animations
+  const fadeElements = document.querySelectorAll('.fade-in-up');
+  const fadeObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  fadeElements.forEach(el => fadeObserver.observe(el));
+
+  // Navigation dots & progress bar
+  const slides = document.querySelectorAll('.slide');
+  const navDots = document.querySelectorAll('.nav-dot');
+  const progressBar = document.getElementById('progress-bar');
+
+  // Slide observer for nav dots
+  const slideObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const index = Array.from(slides).indexOf(entry.target);
+        navDots.forEach((dot, i) => {
+          dot.classList.toggle('active', i === index);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(slide => slideObserver.observe(slide));
+
+  // Click on nav dots to scroll
+  navDots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const slideIndex = parseInt(dot.dataset.slide);
+      slides[slideIndex].scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Progress bar on scroll
+  document.addEventListener('scroll', () => {
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    progressBar.style.width = progress + '%';
+  });
+</script>
+
+</body>
+</html>
