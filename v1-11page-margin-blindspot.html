@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Margin Blindspot — UnitPay</title>
+
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        inter: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace']
+      },
+      colors: {
+        brand: {
+          teal: '#003024',
+          lime: '#a4ea49',
+          mint: '#e1ead3',
+          black: '#0a0a0a',
+          card: '#111111',
+          border: '#1f1f1f',
+          danger: '#ff3b3b',
+          amber: '#f59e0b',
+          slate: '#6b7280'
+        }
+      }
+    }
+  }
+}
+</script>
+
+<style>
+  /* ── Base ── */
+  html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    font-size: 14px;
+  }
+  @media (min-width: 768px) { html { font-size: 15px; } }
+  @media (min-width: 1280px) { html { font-size: 16px; } }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0a0a0a;
+    color: #ffffff;
+    overflow-x: hidden;
+  }
+
+  /* ── Scrollbar hide ── */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  html { scrollbar-width: none; }
+
+  /* ── Scroll snap sections ── */
+  .slide {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Grain / noise overlay ── */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* ── Dark slide gradient ── */
+  .bg-dark-gradient {
+    background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);
+  }
+
+  /* ── Teal slide gradient ── */
+  .bg-teal-gradient {
+    background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);
+  }
+
+  /* ── Fade-in animation ── */
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .fade-in-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Pulse animation ── */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(164, 234, 73, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(164, 234, 73, 0.5); }
+  }
+  .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+  /* ── Progress bar ── */
+  #progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: #a4ea49;
+    z-index: 100;
+    transition: width 0.3s ease;
+  }
+
+  /* ── Nav dots ── */
+  .nav-dots {
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    display: none;
+  }
+  @media (min-width: 1024px) {
+    .nav-dots { display: flex; }
+  }
+  .nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    margin: 6px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .nav-dot.active {
+    background: #a4ea49;
+    box-shadow: 0 0 8px rgba(164, 234, 73, 0.5);
+  }
+
+  /* ── Strikethrough ── */
+  .line-through-red {
+    text-decoration: line-through;
+    text-decoration-color: #ff3b3b;
+    text-decoration-thickness: 2px;
+  }
+
+  /* ── Code block ── */
+  .code-block {
+    background: #0d1117;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Chart bar grow animation ── */
+  .bar-grow {
+    transition: width 1s ease;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     FIXED UI: Progress Bar + Nav Dots
+     ══════════════════════════════════════════════════════════════ -->
+<div id="progress-bar" style="width:0%"></div>
+
+<nav class="nav-dots flex-col items-center" aria-label="Slide navigation">
+  <div class="nav-dot active" data-slide="0"></div>
+  <div class="nav-dot" data-slide="1"></div>
+  <div class="nav-dot" data-slide="2"></div>
+  <div class="nav-dot" data-slide="3"></div>
+  <div class="nav-dot" data-slide="4"></div>
+  <div class="nav-dot" data-slide="5"></div>
+  <div class="nav-dot" data-slide="6"></div>
+  <div class="nav-dot" data-slide="7"></div>
+  <div class="nav-dot" data-slide="8"></div>
+  <div class="nav-dot" data-slide="9"></div>
+  <div class="nav-dot" data-slide="10"></div>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 01 — THE HOOK
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-01">
+  <!-- Radial glow -->
+  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse at center bottom, rgba(0,48,36,0.15) 0%, transparent 70%);"></div>
+
+  <div class="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
+    <!-- UnitPay Logo -->
+    <div class="fade-in-up mb-10 md:mb-12">
+      <svg viewBox="0 0 140 32" class="w-28 md:w-32 h-auto" fill="none">
+        <circle cx="8" cy="10" r="4" fill="#a4ea49"/>
+        <circle cx="20" cy="22" r="3" fill="#a4ea49" opacity="0.7"/>
+        <circle cx="2" cy="22" r="2.5" fill="#a4ea49" opacity="0.5"/>
+        <line x1="8" y1="10" x2="20" y2="22" stroke="#a4ea49" stroke-width="1.2" opacity="0.5"/>
+        <line x1="8" y1="10" x2="2" y2="22" stroke="#a4ea49" stroke-width="1.2" opacity="0.5"/>
+        <text x="30" y="22" fill="#ffffff" font-family="Inter" font-weight="700" font-size="18">UnitPay</text>
+      </svg>
+    </div>
+
+    <!-- Headline -->
+    <div class="fade-in-up" style="transition-delay: 0.15s;">
+      <p class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">Your AI product made</p>
+      <p class="text-5xl md:text-7xl lg:text-8xl font-extrabold leading-none my-3 md:my-4" style="color:#a4ea49; text-shadow: 0 0 40px rgba(164,234,73,0.2);">$840K</p>
+      <p class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">last quarter.</p>
+    </div>
+
+    <div class="fade-in-up mt-5 md:mt-6" style="transition-delay: 0.3s;">
+      <p class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">Do you know how much you <span style="color:#a4ea49">kept</span>?</p>
+    </div>
+
+    <!-- Subtext -->
+    <p class="fade-in-up mt-8 md:mt-10 text-base md:text-lg text-white/60 max-w-lg" style="transition-delay: 0.45s;">
+      Most CFOs can't answer this within $100K.
+    </p>
+
+    <!-- Blurred P&L Visual -->
+    <div class="fade-in-up mt-10 md:mt-14 w-full max-w-2xl" style="transition-delay: 0.6s; transform: perspective(800px) rotateY(-3deg); filter: blur(3px); opacity: 0.7;">
+      <div class="rounded-xl overflow-hidden border border-white/5" style="background: rgba(0,48,36,0.3);">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-white/10">
+              <th class="px-3 py-2 text-white/30 font-medium"></th>
+              <th class="px-3 py-2 text-white/30 font-medium text-xs tracking-wider">A</th>
+              <th class="px-3 py-2 text-white/30 font-medium text-xs tracking-wider">B</th>
+              <th class="px-3 py-2 text-white/30 font-medium text-xs tracking-wider">C</th>
+              <th class="px-3 py-2 text-white/30 font-medium text-xs tracking-wider">D</th>
+            </tr>
+          </thead>
+          <tbody class="text-white/50 font-mono text-xs">
+            <tr class="border-b border-white/5 bg-white/[0.02]">
+              <td class="px-3 py-2 text-white/20">1</td>
+              <td class="px-3 py-2 font-medium">Revenue</td>
+              <td class="px-3 py-2">Q4 2025</td>
+              <td class="px-3 py-2 text-right">$840,000</td>
+              <td class="px-3 py-2"></td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="px-3 py-2 text-white/20">2</td>
+              <td class="px-3 py-2 font-medium">COGS</td>
+              <td class="px-3 py-2">LLM + Compute</td>
+              <td class="px-3 py-2 text-right">$???</td>
+              <td class="px-3 py-2"></td>
+            </tr>
+            <tr class="border-b border-white/5 bg-white/[0.02]">
+              <td class="px-3 py-2 text-white/20">3</td>
+              <td class="px-3 py-2 font-medium">Gross Margin</td>
+              <td class="px-3 py-2"></td>
+              <td class="px-3 py-2 text-right">$???</td>
+              <td class="px-3 py-2 text-right">??%</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="px-3 py-2 text-white/20">4</td>
+              <td class="px-3 py-2 font-medium">LLM Costs</td>
+              <td class="px-3 py-2">GPT-4 / Claude</td>
+              <td class="px-3 py-2 text-right">$???</td>
+              <td class="px-3 py-2"></td>
+            </tr>
+            <tr class="border-b border-white/5 bg-white/[0.02]">
+              <td class="px-3 py-2 text-white/20">5</td>
+              <td class="px-3 py-2 font-medium">Compute Costs</td>
+              <td class="px-3 py-2">AWS / GCP</td>
+              <td class="px-3 py-2 text-right">$???</td>
+              <td class="px-3 py-2"></td>
+            </tr>
+            <tr class="bg-white/[0.02]">
+              <td class="px-3 py-2 text-white/20">6</td>
+              <td class="px-3 py-2 font-bold">Net Margin</td>
+              <td class="px-3 py-2"></td>
+              <td class="px-3 py-2 text-right font-bold">$???</td>
+              <td class="px-3 py-2 text-right font-bold">??%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">01 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none">
+      <circle cx="12" cy="7" r="3" fill="#a4ea49"/>
+      <circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/>
+      <circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/>
+      <line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/>
+      <line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/>
+    </svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 02 — THE FRANKENSTEIN STACK (Problem)
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-teal-gradient flex flex-col justify-center px-6 md:px-12" id="slide-02">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-10 md:mb-16">
+      <p class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+        Usage-based revenue is growing
+      </p>
+      <p class="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-none my-2" style="color:#a4ea49;">3x</p>
+      <p class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+        faster than your ability to track it.
+      </p>
+    </div>
+
+    <!-- Three Stat Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 md:mb-14">
+      <!-- Card 1 - Tool Count -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8" style="background: rgba(10,10,10,0.4); border: 1px solid rgba(164,234,73,0.2); transition-delay: 0.1s;">
+        <svg class="w-8 h-8 mb-4" viewBox="0 0 32 32" fill="none">
+          <rect x="2" y="2" width="12" height="12" rx="3" stroke="#a4ea49" stroke-width="2" stroke-dasharray="4 2"/>
+          <rect x="18" y="2" width="12" height="12" rx="3" stroke="#a4ea49" stroke-width="2" stroke-dasharray="4 2"/>
+          <rect x="10" y="18" width="12" height="12" rx="3" stroke="#a4ea49" stroke-width="2" stroke-dasharray="4 2"/>
+        </svg>
+        <p class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white">5-7</p>
+        <p class="text-sm md:text-base text-white/60 mt-2">disconnected billing tools</p>
+      </div>
+
+      <!-- Card 2 - Cost -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8" style="background: rgba(10,10,10,0.4); border: 1px solid rgba(164,234,73,0.2); transition-delay: 0.25s;">
+        <svg class="w-8 h-8 mb-4" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="12" stroke="#ff3b3b" stroke-width="2"/>
+          <text x="16" y="21" text-anchor="middle" fill="#ff3b3b" font-size="16" font-weight="700">$</text>
+        </svg>
+        <p class="text-4xl md:text-5xl lg:text-6xl font-extrabold" style="color:#ff3b3b;">$2K-5K</p>
+        <p class="text-sm md:text-base text-white/60 mt-2">/month in tool costs alone</p>
+      </div>
+
+      <!-- Card 3 - Time Waste -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8" style="background: rgba(10,10,10,0.4); border: 1px solid rgba(164,234,73,0.2); transition-delay: 0.4s;">
+        <svg class="w-8 h-8 mb-4" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="12" stroke="#f59e0b" stroke-width="2"/>
+          <line x1="16" y1="10" x2="16" y2="17" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+          <line x1="16" y1="17" x2="21" y2="17" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p class="text-4xl md:text-5xl lg:text-6xl font-extrabold" style="color:#f59e0b;">60%</p>
+        <p class="text-sm md:text-base text-white/60 mt-2">of finance time spent reconciling</p>
+      </div>
+    </div>
+
+    <!-- Frankenstein Stack Visual -->
+    <div class="fade-in-up" style="transition-delay: 0.55s;">
+      <div class="flex flex-wrap justify-center items-center gap-3 md:gap-4 relative">
+        <div class="px-3 py-2 rounded-lg text-xs font-medium text-white/80" style="background:#1a1a1a;">Billing Tool</div>
+        <div class="text-white/20">───</div>
+        <div class="px-3 py-2 rounded-lg text-xs font-medium text-white/80" style="background:#1a1a1a;">Metering API</div>
+        <div class="text-white/20">─ ─</div>
+        <div class="px-3 py-2 rounded-lg text-xs font-medium text-white/80" style="background:#1a1a1a;">Analytics</div>
+        <div class="text-white/20">───</div>
+        <div class="px-3 py-2 rounded-lg text-xs font-medium text-white/80" style="background:#1a1a1a;">Tax Engine</div>
+        <div class="text-white/20">─ ─</div>
+        <div class="px-3 py-2 rounded-lg text-xs font-medium text-white/80" style="background:#1a1a1a;">Payments</div>
+      </div>
+      <div class="flex items-center justify-center mt-3 gap-2">
+        <div class="h-px w-12 md:w-20" style="background: linear-gradient(to right, transparent, #6b7280);"></div>
+        <div class="px-4 py-2 rounded-lg text-xs font-bold border" style="color:#ff3b3b; background:rgba(255,59,59,0.08); border-color: rgba(255,59,59,0.3);">
+          Spreadsheets (the glue)
+        </div>
+        <div class="h-px w-12 md:w-20" style="background: linear-gradient(to left, transparent, #6b7280);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">02 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 03 — THE INVISIBLE MARGIN TABLE (Cost of Inaction)
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-03">
+  <!-- Red danger glow -->
+  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse at center, rgba(255,59,59,0.08) 0%, transparent 60%);"></div>
+
+  <div class="relative z-10 w-full max-w-4xl mx-auto text-center">
+    <!-- Headline -->
+    <div class="fade-in-up mb-10 md:mb-16">
+      <p class="text-xl md:text-3xl lg:text-5xl font-bold text-white leading-tight">
+        Every month without margin visibility,<br>
+        you're approving spend you <span style="color:#ff3b3b;">can't justify.</span>
+      </p>
+    </div>
+
+    <!-- Customer Margin Table -->
+    <div class="fade-in-up rounded-2xl overflow-hidden mx-auto" style="background:#111111; border: 1px solid #1f1f1f; transition-delay: 0.2s;">
+      <table class="w-full">
+        <thead>
+          <tr style="background:#0a0a0a;">
+            <th class="px-4 md:px-6 py-3 text-left text-xs font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Customer</th>
+            <th class="px-4 md:px-6 py-3 text-right text-xs font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Revenue</th>
+            <th class="px-4 md:px-6 py-3 text-center text-xs font-medium tracking-wider uppercase text-white/40 border-b border-l-2" style="border-color:#1f1f1f; border-left-color: rgba(255,59,59,0.3);">Cost</th>
+            <th class="px-4 md:px-6 py-3 text-center text-xs font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-4 md:px-6 py-4 font-medium text-white text-sm md:text-base">Acme AI</td>
+            <td class="px-4 md:px-6 py-4 text-right font-bold text-white text-sm md:text-lg">$12,400</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b; text-shadow: 0 0 12px rgba(255,59,59,0.2);">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b; text-shadow: 0 0 12px rgba(255,59,59,0.2);">?</span></td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-4 md:px-6 py-4 font-medium text-white text-sm md:text-base">BotCorp</td>
+            <td class="px-4 md:px-6 py-4 text-right font-bold text-white text-sm md:text-lg">$8,200</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-4 md:px-6 py-4 font-medium text-white text-sm md:text-base">DataFlow</td>
+            <td class="px-4 md:px-6 py-4 text-right font-bold text-white text-sm md:text-lg">$3,100</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-4 md:px-6 py-4 font-medium text-white text-sm md:text-base">NeuralOps</td>
+            <td class="px-4 md:px-6 py-4 text-right font-bold text-white text-sm md:text-lg">$22,800</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-4 md:px-6 py-4 font-medium text-white text-sm md:text-base">AgentLab</td>
+            <td class="px-4 md:px-6 py-4 text-right font-bold text-white text-sm md:text-lg">$5,600</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+          </tr>
+          <!-- Total row -->
+          <tr style="background:#1a1a1a; border-top: 2px solid rgba(164,234,73,0.2);">
+            <td class="px-4 md:px-6 py-4 font-bold text-white text-sm md:text-base">TOTAL</td>
+            <td class="px-4 md:px-6 py-4 text-right font-extrabold text-white text-base md:text-xl">$52,100</td>
+            <td class="px-4 md:px-6 py-4 text-center border-l-2" style="border-left-color: rgba(255,59,59,0.15);"><span class="text-2xl md:text-3xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+            <td class="px-4 md:px-6 py-4 text-center"><span class="text-2xl md:text-3xl font-extrabold" style="color:#ff3b3b;">?</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Subtext -->
+    <p class="fade-in-up mt-8 text-sm md:text-lg text-white/60 max-w-2xl mx-auto" style="transition-delay: 0.4s;">
+      If you can't see it per-customer, per-feature, per-API-call — you're guessing.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">03 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 04 — THE AI MARGIN CRISIS (Why Now) — NEW
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-04">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up text-left mb-3">
+      <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white">"The Problem Is Accelerating"</h2>
+    </div>
+    <p class="fade-in-up text-base md:text-lg text-white/60 mb-8 md:mb-10" style="transition-delay: 0.1s;">
+      AI pricing models are <span style="color:#a4ea49;">4X more complex</span> than SaaS subscriptions.<br>
+      Your margin blindspot is growing every quarter.
+    </p>
+
+    <!-- Complexity Growth Chart -->
+    <div class="fade-in-up rounded-2xl p-4 md:p-8 mb-8" style="background:#111111; border: 1px solid #1f1f1f; transition-delay: 0.2s;">
+      <p class="text-[11px] font-medium tracking-wider uppercase text-white/40 mb-4">Pricing Variables per Customer</p>
+      <svg viewBox="0 0 600 280" class="w-full h-auto" fill="none">
+        <!-- Grid lines -->
+        <line x1="60" y1="20" x2="60" y2="240" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="240" x2="570" y2="240" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="60" x2="570" y2="60" stroke="#1f1f1f" stroke-width="0.5" stroke-dasharray="4"/>
+        <line x1="60" y1="120" x2="570" y2="120" stroke="#1f1f1f" stroke-width="0.5" stroke-dasharray="4"/>
+        <line x1="60" y1="180" x2="570" y2="180" stroke="#1f1f1f" stroke-width="0.5" stroke-dasharray="4"/>
+
+        <!-- Y-axis labels -->
+        <text x="50" y="244" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">0</text>
+        <text x="50" y="184" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">20</text>
+        <text x="50" y="124" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">40</text>
+        <text x="50" y="64" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">80</text>
+        <text x="50" y="24" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">120</text>
+
+        <!-- X-axis labels -->
+        <text x="85" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2020</text>
+        <text x="166" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2021</text>
+        <text x="247" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2022</text>
+        <text x="328" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2023</text>
+        <text x="409" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2024</text>
+        <text x="490" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2025</text>
+        <text x="555" y="258" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Inter">2026</text>
+
+        <!-- SaaS line (flat, gray, dashed) -->
+        <!-- 3 → 3.3 → 3.7 → 4 → 4.3 → 4.7 → 5 mapped to Y -->
+        <path d="M 85 235 L 166 234 L 247 233 L 328 232 L 409 231 L 490 230 L 555 229"
+              stroke="#6b7280" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+        <text x="560" y="226" fill="#6b7280" font-size="10" font-family="Inter">SaaS</text>
+
+        <!-- AI/Usage line (exponential, lime, solid, glow) -->
+        <!-- 3 → 5 → 10 → 20 → 40 → 80 → 120 mapped: 0=240, 120=20. Scale: y = 240 - (val/120)*220 -->
+        <path d="M 85 235 L 166 231 L 247 222 L 328 203 L 409 167 L 490 93 L 555 20"
+              stroke="#a4ea49" stroke-width="3" fill="none"
+              style="filter: drop-shadow(0 0 8px rgba(164,234,73,0.4));"/>
+        <text x="540" y="14" fill="#a4ea49" font-size="10" font-weight="600" font-family="Inter">AI / Usage</text>
+
+        <!-- Fork point (~2022) -->
+        <circle cx="247" cy="222" r="5" fill="#ffffff"/>
+        <text x="260" y="218" fill="#ffffff" font-size="10" font-weight="500" font-family="Inter">The divergence</text>
+
+        <!-- Legend -->
+        <line x1="80" y1="275" x2="100" y2="275" stroke="#6b7280" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="106" y="278" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">SaaS/Subscription</text>
+        <line x1="230" y1="275" x2="250" y2="275" stroke="#a4ea49" stroke-width="2"/>
+        <text x="256" y="278" fill="#a4ea49" font-size="10" font-family="Inter">AI / Usage-Based</text>
+      </svg>
+    </div>
+
+    <!-- Three Stat Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+      <div class="fade-in-up rounded-xl p-5" style="background:#111111; border: 1px solid #1f1f1f; transition-delay: 0.35s;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color:#a4ea49;">4X</p>
+        <p class="text-sm text-white/60 mt-2">more pricing variables vs. SaaS</p>
+      </div>
+      <div class="fade-in-up rounded-xl p-5" style="background:#111111; border: 1px solid #1f1f1f; transition-delay: 0.45s;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color:#a4ea49;">67%</p>
+        <p class="text-sm text-white/60 mt-2">of AI companies can't calculate per-customer margins</p>
+      </div>
+      <div class="fade-in-up rounded-xl p-5" style="background:#111111; border: 1px solid #1f1f1f; transition-delay: 0.55s;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color:#a4ea49;">$840K</p>
+        <p class="text-sm text-white/60 mt-2">avg. annual margin leakage (undetected)</p>
+      </div>
+    </div>
+
+    <!-- Closing quote -->
+    <p class="fade-in-up text-sm md:text-base italic text-white/60 text-center max-w-2xl mx-auto" style="transition-delay: 0.65s;">
+      "Every quarter you wait, the gap between your revenue and your understanding of that revenue gets wider."
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">04 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 05 — THE MARGIN REVEAL (Solution)
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain flex flex-col lg:flex-row" id="slide-05" style="background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);">
+  <!-- Left Panel -->
+  <div class="relative z-10 w-full lg:w-[55%] flex flex-col justify-center px-6 md:px-10 lg:px-16 py-12 lg:py-0">
+    <!-- Label badge -->
+    <div class="fade-in-up mb-6">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest" style="background:#a4ea49; color:#003024;">The Fix</span>
+    </div>
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-8" style="transition-delay: 0.15s;">
+      <h2 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
+        One platform.<br>
+        Every dollar tracked.<br>
+        Every margin<br>
+        <span style="color:#a4ea49;">visible.</span>
+      </h2>
+    </div>
+
+    <!-- Three Pillars -->
+    <div class="fade-in-up flex flex-wrap gap-6 md:gap-8 mb-8" style="transition-delay: 0.3s;">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M2 10h4l2-4 4 8 2-4h4" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="font-medium text-white">Meter</span>
+        </div>
+        <p class="text-xs text-white/60">Usage, tokens, compute</p>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M10 2L6 8h8L10 2z" fill="#a4ea49"/><rect x="6" y="10" width="8" height="6" rx="1" stroke="#a4ea49" stroke-width="1.5"/></svg>
+          <span class="font-medium text-white">Price</span>
+        </div>
+        <p class="text-xs text-white/60">Dynamic, hybrid, outcome</p>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#a4ea49" stroke-width="1.5"/><line x1="7" y1="7" x2="13" y2="7" stroke="#a4ea49" stroke-width="1"/><line x1="7" y1="10" x2="13" y2="10" stroke="#a4ea49" stroke-width="1"/><line x1="7" y1="13" x2="11" y2="13" stroke="#a4ea49" stroke-width="1"/></svg>
+          <span class="font-medium text-white">Collect</span>
+        </div>
+        <p class="text-xs text-white/60">Invoice, tax, payment</p>
+      </div>
+    </div>
+
+    <!-- Cost comparison -->
+    <div class="fade-in-up text-sm md:text-base" style="transition-delay: 0.45s;">
+      <span class="text-white/70">Replaces your </span>
+      <span class="line-through-red font-bold" style="color:#ff3b3b;">$5,000/month</span>
+      <span class="text-white/70"> stack for </span>
+      <span class="font-bold" style="color:#a4ea49;">$299/month</span>
+    </div>
+  </div>
+
+  <!-- Right Panel - Dashboard Mockup -->
+  <div class="relative z-10 w-full lg:w-[45%] flex items-center justify-center px-6 py-8 lg:py-0" style="background: linear-gradient(160deg, rgba(10,10,10,0.8), rgba(10,10,10,0.95));">
+    <div class="fade-in-up w-full max-w-lg rounded-2xl overflow-hidden" style="background:#111111; border: 1px solid #1f1f1f; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition-delay: 0.3s;">
+      <!-- Dashboard header -->
+      <div class="flex items-center justify-between px-4 py-2.5 text-xs" style="background:#0a0a0a; border-bottom: 1px solid #1f1f1f;">
+        <span class="text-white/60 font-medium">Customer Margins — Real-Time</span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background:#a4ea49;"></span>
+          <span class="text-white/40">2 min ago</span>
+        </span>
+      </div>
+      <!-- Resolved table -->
+      <table class="w-full text-xs md:text-sm">
+        <thead>
+          <tr style="background:#0a0a0a;">
+            <th class="px-3 py-2 text-left text-[10px] font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Customer</th>
+            <th class="px-3 py-2 text-right text-[10px] font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Revenue</th>
+            <th class="px-3 py-2 text-right text-[10px] font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Cost</th>
+            <th class="px-3 py-2 text-right text-[10px] font-medium tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-3 py-2.5 font-medium text-white">Acme AI</td>
+            <td class="px-3 py-2.5 text-right text-white font-bold">$12,400</td>
+            <td class="px-3 py-2.5 text-right text-white/70">$4,340</td>
+            <td class="px-3 py-2.5 text-right font-bold" style="color:#a4ea49;">+65.0%</td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-3 py-2.5 font-medium text-white">BotCorp</td>
+            <td class="px-3 py-2.5 text-right text-white font-bold">$8,200</td>
+            <td class="px-3 py-2.5 text-right text-white/70">$3,116</td>
+            <td class="px-3 py-2.5 text-right font-bold" style="color:#a4ea49;">+62.0%</td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-3 py-2.5 font-medium text-white">DataFlow</td>
+            <td class="px-3 py-2.5 text-right text-white font-bold">$3,100</td>
+            <td class="px-3 py-2.5 text-right text-white/70">$2,480</td>
+            <td class="px-3 py-2.5 text-right font-bold" style="color:#f59e0b;">+20.0%</td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-3 py-2.5 font-medium text-white">NeuralOps</td>
+            <td class="px-3 py-2.5 text-right text-white font-bold">$22,800</td>
+            <td class="px-3 py-2.5 text-right text-white/70">$6,840</td>
+            <td class="px-3 py-2.5 text-right font-bold" style="color:#a4ea49;">+70.0%</td>
+          </tr>
+          <tr class="border-b" style="border-color:#1f1f1f;">
+            <td class="px-3 py-2.5 font-medium text-white">AgentLab</td>
+            <td class="px-3 py-2.5 text-right text-white font-bold">$5,600</td>
+            <td class="px-3 py-2.5 text-right text-white/70">$4,760</td>
+            <td class="px-3 py-2.5 text-right font-bold" style="color:#ff3b3b;">+15.0%</td>
+          </tr>
+          <tr style="background:#1a1a1a; border-top: 2px solid rgba(164,234,73,0.2);">
+            <td class="px-3 py-3 font-bold text-white">TOTAL</td>
+            <td class="px-3 py-3 text-right font-extrabold text-white">$52,100</td>
+            <td class="px-3 py-3 text-right font-bold text-white/70">$21,536</td>
+            <td class="px-3 py-3 text-right font-extrabold" style="color:#a4ea49;">+58.7%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">05 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 06 — THE TRANSACTION LAYER (Product #1)
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-06">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-8 md:mb-12">
+      <h2 class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+        Real-time unit economics<br>for <span style="color:#a4ea49;">every</span> transaction.
+      </h2>
+    </div>
+
+    <!-- Two Cards Side by Side -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
+      <!-- Transaction Card -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8" style="background:#111111; border: 1px solid #1f1f1f; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition-delay: 0.15s;">
+        <div class="flex items-center gap-2 mb-5">
+          <span class="text-xs font-medium text-white/60">Transaction</span>
+          <span class="text-xs font-medium text-white px-2 py-0.5 rounded" style="background:#1a1a1a;">#8921</span>
+        </div>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-white/60 text-sm">Revenue</span>
+            <span class="text-lg font-bold text-white">$0.1500</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-white/60 text-sm">LLM Cost</span>
+            <span class="text-lg font-bold" style="color:#ff3b3b;">-$0.0342</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-white/60 text-sm">Compute</span>
+            <span class="text-lg font-bold" style="color:#ff3b3b;">-$0.0100</span>
+          </div>
+          <div class="my-3" style="border-top: 1px solid #1f1f1f;"></div>
+          <div class="flex justify-between items-center">
+            <span class="text-white/60 text-sm font-medium">Net Margin</span>
+            <span class="text-2xl font-extrabold" style="color:#a4ea49;">+70.5%</span>
+          </div>
+          <!-- Margin bar -->
+          <div class="w-full h-2 rounded-full" style="background:#1a1a1a;">
+            <div class="h-full rounded-full" style="width: 70.5%; background:#a4ea49;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Trace Card -->
+      <div class="fade-in-up code-block rounded-2xl p-6 md:p-8" style="border: 1px solid #1f1f1f; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition-delay: 0.3s;">
+        <div class="flex items-center justify-between mb-5">
+          <span class="text-xs font-medium text-white/60">Granular Attribution</span>
+          <span class="flex items-center gap-1.5 text-xs">
+            <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background:#a4ea49;"></span>
+            <span class="text-white/40">LIVE</span>
+          </span>
+        </div>
+        <pre class="text-sm leading-relaxed font-mono"><span style="color:#6b7280;">{</span>
+  <span style="color:#6b7280;">trace_id:</span>   <span style="color:#a4ea49;">"evt_8923"</span>
+  <span style="color:#6b7280;">user:</span>       <span style="color:#a4ea49;">"customer_A"</span>
+  <span style="color:#6b7280;">model:</span>      <span style="color:#f59e0b;">"gpt-4-turbo"</span>
+  <span style="color:#6b7280;">tokens:</span>     <span style="color:#ffffff;">842</span>
+  <span style="color:#6b7280;">cost:</span>       <span style="color:#ff3b3b;">$0.024</span>
+<span style="color:#6b7280;">}</span></pre>
+      </div>
+    </div>
+
+    <!-- Margin Alert Card -->
+    <div class="fade-in-up rounded-xl flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 p-4 md:p-5" style="background: rgba(255,59,59,0.08); border: 1px solid rgba(255,59,59,0.3); transition-delay: 0.45s;">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="none"><path d="M10 2L1 18h18L10 2z" fill="#ff3b3b"/><text x="10" y="15" text-anchor="middle" fill="#0a0a0a" font-size="10" font-weight="800">!</text></svg>
+        <span class="text-sm font-bold" style="color:#ff3b3b;">Margin Alert</span>
+      </div>
+      <p class="text-sm text-white flex-1">Agent Sales_Bot_V2 dropped below 15% margin</p>
+      <span class="text-sm font-medium cursor-pointer" style="color:#a4ea49;">View Details →</span>
+    </div>
+
+    <!-- Subtext -->
+    <p class="fade-in-up mt-6 md:mt-8 text-sm md:text-base text-white/60 max-w-2xl" style="transition-delay: 0.6s;">
+      See this for every customer, every agent, every API call. Not monthly. <span class="text-white font-medium">Real-time.</span>
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">06 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 07 — THE MARGIN DASHBOARD (Product #2) — NEW
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-07">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-2">
+      <h2 class="text-2xl md:text-3xl lg:text-4xl font-bold text-white">Your Margin Command Center</h2>
+    </div>
+    <p class="fade-in-up text-sm md:text-base text-white/60 mb-6 md:mb-8" style="transition-delay: 0.1s;">
+      Every metric a CFO needs. Updated in real-time. <span style="color:#a4ea49;">Zero spreadsheets.</span>
+    </p>
+
+    <!-- Full Dashboard Mockup -->
+    <div class="fade-in-up rounded-2xl overflow-hidden" style="background:#0a0a0a; border: 1px solid #1f1f1f; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition-delay: 0.2s;">
+
+      <!-- Header Bar -->
+      <div class="flex items-center justify-between px-4 md:px-5 py-2.5" style="background:#111111; border-bottom: 1px solid #1f1f1f;">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full pulse-dot" style="background:#a4ea49;"></span>
+          <span class="text-sm font-medium text-white">Revenue Dashboard</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <span class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full pulse-dot" style="background:#a4ea49;"></span>
+            <span class="text-white/60 font-medium">LIVE</span>
+          </span>
+          <span class="text-white/40">Feb 2026 ▾</span>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 md:p-5">
+        <!-- KPI 1 - MRR -->
+        <div class="rounded-lg p-3 md:p-4" style="background:#111111; border: 1px solid #1f1f1f;">
+          <p class="text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">MRR</p>
+          <p class="text-xl md:text-2xl font-extrabold text-white">$84,200</p>
+          <p class="text-xs font-medium mt-1" style="color:#a4ea49;">▲ 12.3%</p>
+        </div>
+        <!-- KPI 2 - Net Margin -->
+        <div class="rounded-lg p-3 md:p-4" style="background:#111111; border: 1px solid #1f1f1f;">
+          <p class="text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">Net Margin</p>
+          <p class="text-xl md:text-2xl font-extrabold text-white">58.7%</p>
+          <p class="text-xs font-medium mt-1" style="color:#a4ea49;">▲ 3.1%</p>
+        </div>
+        <!-- KPI 3 - Gross Margin -->
+        <div class="rounded-lg p-3 md:p-4" style="background:#111111; border: 1px solid #1f1f1f;">
+          <p class="text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">Gross Margin</p>
+          <p class="text-xl md:text-2xl font-extrabold text-white">74.2%</p>
+          <p class="text-xs font-medium mt-1" style="color:#a4ea49;">▲ 1.8%</p>
+        </div>
+        <!-- KPI 4 - At-Risk Revenue -->
+        <div class="rounded-lg p-3 md:p-4" style="background:#111111; border: 1px solid #1f1f1f;">
+          <p class="text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-white/40 mb-1">At-Risk Revenue</p>
+          <p class="text-xl md:text-2xl font-extrabold" style="color:#ff3b3b;">$4,200</p>
+          <p class="text-xs font-medium mt-1" style="color:#a4ea49;">▼ 62%</p>
+        </div>
+      </div>
+
+      <!-- Revenue vs Cost Chart -->
+      <div class="px-4 md:px-5 pb-3">
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-white/40 w-14 text-right">Revenue</span>
+            <div class="flex-1 h-5 rounded" style="background: rgba(164,234,73,0.8);"></div>
+            <span class="text-xs font-medium text-white/70 w-14">$84.2K</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-white/40 w-14 text-right">COGS</span>
+            <div class="flex-1 h-5 rounded" style="background: rgba(255,59,59,0.6); max-width: 25.8%;"></div>
+            <span class="text-xs font-medium w-14" style="color:#ff3b3b;">$21.7K</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-white/40 w-14 text-right">Infra</span>
+            <div class="flex-1 h-5 rounded" style="background: rgba(245,158,11,0.6); max-width: 10%;"></div>
+            <span class="text-xs font-medium w-14" style="color:#f59e0b;">$8.4K</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] text-white/40 w-14 text-right">Margin</span>
+            <div class="flex-1 h-5 rounded" style="background: rgba(164,234,73,0.15); max-width: 64.2%; background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(164,234,73,0.1) 4px, rgba(164,234,73,0.1) 8px);"></div>
+            <span class="text-xs font-medium w-14" style="color:#a4ea49;">$54.1K</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Margin Table -->
+      <div class="px-4 md:px-5 pb-4">
+        <table class="w-full text-xs md:text-sm">
+          <thead>
+            <tr style="background:#111111;">
+              <th class="px-3 py-2 text-left text-[10px] font-bold tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Customer</th>
+              <th class="px-3 py-2 text-right text-[10px] font-bold tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">MRR</th>
+              <th class="px-3 py-2 text-right text-[10px] font-bold tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Cost</th>
+              <th class="px-3 py-2 text-right text-[10px] font-bold tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Margin</th>
+              <th class="px-3 py-2 text-center text-[10px] font-bold tracking-wider uppercase text-white/40 border-b" style="border-color:#1f1f1f;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b" style="border-color:#1f1f1f;">
+              <td class="px-3 py-2.5 text-white font-medium">Acme Corp</td>
+              <td class="px-3 py-2.5 text-right text-white">$12.4K</td>
+              <td class="px-3 py-2.5 text-right text-white/70">$3.1K</td>
+              <td class="px-3 py-2.5 text-right font-medium" style="color:#a4ea49;">75.0%</td>
+              <td class="px-3 py-2.5 text-center"><span class="inline-block w-2 h-2 rounded-full" style="background:#a4ea49;"></span></td>
+            </tr>
+            <tr class="border-b" style="border-color:#1f1f1f;">
+              <td class="px-3 py-2.5 text-white font-medium">TechFlow</td>
+              <td class="px-3 py-2.5 text-right text-white">$8.7K</td>
+              <td class="px-3 py-2.5 text-right text-white/70">$2.9K</td>
+              <td class="px-3 py-2.5 text-right font-medium" style="color:#a4ea49;">66.7%</td>
+              <td class="px-3 py-2.5 text-center"><span class="inline-block w-2 h-2 rounded-full" style="background:#a4ea49;"></span></td>
+            </tr>
+            <tr class="border-b" style="border-color:#1f1f1f;">
+              <td class="px-3 py-2.5 text-white font-medium">DataSync</td>
+              <td class="px-3 py-2.5 text-right text-white">$6.2K</td>
+              <td class="px-3 py-2.5 text-right text-white/70">$2.8K</td>
+              <td class="px-3 py-2.5 text-right font-medium" style="color:#f59e0b;">54.8%</td>
+              <td class="px-3 py-2.5 text-center"><span class="inline-block w-2 h-2 rounded-full" style="background:#f59e0b;"></span></td>
+            </tr>
+            <tr class="border-b" style="border-color:#1f1f1f;">
+              <td class="px-3 py-2.5 text-white font-medium">CloudBit</td>
+              <td class="px-3 py-2.5 text-right text-white">$4.1K</td>
+              <td class="px-3 py-2.5 text-right text-white/70">$3.2K</td>
+              <td class="px-3 py-2.5 text-right font-bold" style="color:#ff3b3b;">22.0%</td>
+              <td class="px-3 py-2.5 text-center"><span class="inline-block w-2 h-2 rounded-full" style="background:#ff3b3b;"></span></td>
+            </tr>
+            <tr>
+              <td class="px-3 py-2.5 text-white font-medium">NeuralOps</td>
+              <td class="px-3 py-2.5 text-right text-white">$3.8K</td>
+              <td class="px-3 py-2.5 text-right text-white/70">$1.4K</td>
+              <td class="px-3 py-2.5 text-right font-medium" style="color:#a4ea49;">63.2%</td>
+              <td class="px-3 py-2.5 text-center"><span class="inline-block w-2 h-2 rounded-full" style="background:#a4ea49;"></span></td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- Scroll hint -->
+        <div class="text-center pt-1 pb-0.5">
+          <span class="inline-block w-8 h-0.5 rounded-full" style="background:rgba(255,255,255,0.1);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three Callout Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 md:mt-6">
+      <div class="fade-in-up flex items-center gap-3 rounded-lg p-3" style="border: 1px solid #1f1f1f; transition-delay: 0.4s;">
+        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#a4ea49" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="#a4ea49"/></svg>
+        <span class="text-xs text-white">Per-customer margin in one glance</span>
+      </div>
+      <div class="fade-in-up flex items-center gap-3 rounded-lg p-3" style="border: 1px solid #1f1f1f; transition-delay: 0.5s;">
+        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#a4ea49" stroke-width="1.5"/><polyline points="8,4 8,8 11,8" stroke="#a4ea49" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="text-xs text-white">Real-time cost attribution</span>
+      </div>
+      <div class="fade-in-up flex items-center gap-3 rounded-lg p-3" style="border: 1px solid #1f1f1f; transition-delay: 0.6s;">
+        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none"><path d="M8 2v3M8 11v3M2 8h3M11 8h3" stroke="#a4ea49" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="#a4ea49" stroke-width="1.5"/></svg>
+        <span class="text-xs text-white">Auto-alerts when margins drop below threshold</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">07 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 08 — FROM BLIND TO 58.7% (Customer Story) — NEW
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-08">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-8 md:mb-10">
+      <h2 class="text-2xl md:text-3xl lg:text-4xl font-bold text-white">
+        How <span style="color:#a4ea49;">One AI Company</span> Found $340K in Hidden Margin
+      </h2>
+    </div>
+
+    <!-- Story Timeline -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 mb-8 md:mb-10 relative">
+      <!-- Timeline connector (desktop) -->
+      <div class="hidden md:block absolute top-1/2 left-[18%] right-[18%] h-0 z-0" style="border-top: 2px dashed rgba(164,234,73,0.4);"></div>
+
+      <!-- BEFORE Card -->
+      <div class="fade-in-up relative z-10 md:px-3" style="transition-delay: 0.1s;">
+        <div class="rounded-xl p-5 md:p-6 h-full" style="background: rgba(255,59,59,0.05); border: 1px solid rgba(255,59,59,0.15);">
+          <p class="text-xs font-bold uppercase tracking-wider mb-4" style="color:#ff3b3b;">Before</p>
+          <div class="space-y-3 text-sm text-white leading-relaxed">
+            <p>"5 billing tools"</p>
+            <p>"No margin visibility"</p>
+            <p>"$63K/yr in tools"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow (mobile) -->
+      <div class="flex md:hidden justify-center -my-1">
+        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M6 12l4 4 4-4" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- WEEK 1 Card -->
+      <div class="fade-in-up relative z-10 md:px-3" style="transition-delay: 0.3s;">
+        <div class="rounded-xl p-5 md:p-6 h-full" style="background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.15);">
+          <p class="text-xs font-bold uppercase tracking-wider mb-4" style="color:#f59e0b;">Week 1</p>
+          <div class="space-y-3 text-sm text-white leading-relaxed">
+            <p>"Connected in 1 day"</p>
+            <p>"First dashboard in 3 days"</p>
+            <p>"Found 2 underwater customers"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow (mobile) -->
+      <div class="flex md:hidden justify-center -my-1">
+        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M6 12l4 4 4-4" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- NOW Card -->
+      <div class="fade-in-up relative z-10 md:px-3" style="transition-delay: 0.5s;">
+        <div class="rounded-xl p-5 md:p-6 h-full" style="background: rgba(164,234,73,0.05); border: 1px solid rgba(164,234,73,0.15);">
+          <p class="text-xs font-bold uppercase tracking-wider mb-4" style="color:#a4ea49;">Now</p>
+          <div class="space-y-3 text-sm text-white leading-relaxed">
+            <p>"58.7% net margin visible"</p>
+            <p>"$340K margin recovered"</p>
+            <p>"One source of truth"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quote Block -->
+    <div class="fade-in-up max-w-3xl mx-auto mb-8 rounded-r-xl py-5 px-6 md:px-8" style="background:#111111; border-left: 3px solid #a4ea49; transition-delay: 0.6s;">
+      <p class="text-base md:text-lg italic text-white leading-relaxed mb-3">
+        "We didn't know CloudBit was costing us money until UnitPay showed us. That one insight paid for 10 years of the platform."
+      </p>
+      <p class="text-sm font-medium text-white/60">— VP Finance, Series B AI Company</p>
+    </div>
+
+    <!-- Three Metric Cards -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="fade-in-up rounded-lg p-4 text-center" style="border: 1px solid #1f1f1f; transition-delay: 0.7s;">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color:#a4ea49;">5 → 1</p>
+        <p class="text-xs text-white/60 mt-1">tools consolidated</p>
+      </div>
+      <div class="fade-in-up rounded-lg p-4 text-center" style="border: 1px solid #1f1f1f; transition-delay: 0.8s;">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color:#a4ea49;">3 days</p>
+        <p class="text-xs text-white/60 mt-1">to first insight</p>
+      </div>
+      <div class="fade-in-up rounded-lg p-4 text-center" style="border: 1px solid #1f1f1f; transition-delay: 0.9s;">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color:#a4ea49;">$340K</p>
+        <p class="text-xs text-white/60 mt-1">margin recovered</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">08 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 09 — TRACTION & MOMENTUM (Minor Update)
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-teal-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-09">
+  <div class="relative z-10 w-full max-w-5xl mx-auto text-center">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-12 md:mb-16">
+      <h2 class="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+        Early customers are already seeing<br>
+        what they <span class="line-through" style="text-decoration-color: rgba(255,255,255,0.4);">couldn't</span> before.
+      </h2>
+    </div>
+
+    <!-- Three Metrics -->
+    <div class="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-0 mb-10 md:mb-14">
+      <!-- Metric 1 -->
+      <div class="fade-in-up md:flex-1 md:border-r md:border-white/10 px-6" style="transition-delay: 0.1s;">
+        <p class="text-6xl md:text-7xl lg:text-8xl font-extrabold" style="color:#a4ea49;">3</p>
+        <p class="text-base md:text-lg text-white mt-2">companies live</p>
+        <p class="text-sm text-white/60 mt-1">tracking margins in real-time</p>
+      </div>
+
+      <!-- Metric 2 -->
+      <div class="fade-in-up md:flex-1 md:border-r md:border-white/10 px-6" style="transition-delay: 0.25s;">
+        <p class="text-6xl md:text-7xl lg:text-8xl font-extrabold" style="color:#a4ea49;">10</p>
+        <p class="text-base md:text-lg text-white mt-2">on the waitlist</p>
+        <p class="text-sm text-white/60 mt-1">migrating from multi-tool stacks</p>
+      </div>
+
+      <!-- Metric 3 -->
+      <div class="fade-in-up md:flex-1 px-6" style="transition-delay: 0.4s;">
+        <p class="text-6xl md:text-7xl lg:text-8xl font-extrabold" style="color:#a4ea49;">$200K</p>
+        <p class="text-base md:text-lg text-white mt-2">raised</p>
+        <p class="text-sm text-white/60 mt-1">to build what doesn't exist yet</p>
+      </div>
+    </div>
+
+    <!-- Setup Timeline -->
+    <div class="fade-in-up mb-8" style="transition-delay: 0.5s;">
+      <p class="text-xl md:text-2xl font-bold text-white mb-5">
+        Live in under <span style="color:#a4ea49;">10 minutes</span>
+      </p>
+      <div class="flex items-center justify-center gap-0 max-w-xl mx-auto">
+        <!-- Node 1 -->
+        <div class="flex flex-col items-center">
+          <span class="text-xs text-white font-medium mb-2">Install SDK</span>
+          <span class="w-3 h-3 rounded-full" style="background:#a4ea49;"></span>
+          <span class="text-[10px] text-white/40 mt-2">0 min</span>
+        </div>
+        <div class="flex-1 h-0.5 mx-1" style="background:#a4ea49;"></div>
+        <!-- Node 2 -->
+        <div class="flex flex-col items-center">
+          <span class="text-xs text-white font-medium mb-2">Configure pricing</span>
+          <span class="w-3 h-3 rounded-full" style="background:#a4ea49;"></span>
+          <span class="text-[10px] text-white/40 mt-2">5 min</span>
+        </div>
+        <div class="flex-1 h-0.5 mx-1" style="background:#a4ea49;"></div>
+        <!-- Node 3 -->
+        <div class="flex flex-col items-center">
+          <span class="text-xs text-white font-medium mb-2">First margin report</span>
+          <span class="w-3 h-3 rounded-full" style="background:#a4ea49;"></span>
+          <span class="text-[10px] text-white/40 mt-2">10 min</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer story callback (NEW for 11-page) -->
+    <p class="fade-in-up text-xs font-medium mb-6" style="color:#a4ea49; transition-delay: 0.6s;">
+      Read the full story → Slide 8
+    </p>
+
+    <!-- Reframe text -->
+    <p class="fade-in-up text-sm md:text-base max-w-2xl mx-auto leading-relaxed" style="color: #e1ead3; opacity: 0.8; transition-delay: 0.65s;">
+      We're early. That means you get white-glove onboarding and a platform shaped around YOUR pricing models.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">09 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 10 — WHY NOT JUST FIX YOUR STACK? (Comparison) — NEW
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-10">
+  <div class="relative z-10 w-full max-w-5xl mx-auto">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-2">
+      <h2 class="text-2xl md:text-3xl lg:text-4xl font-bold text-white">Why Not Just Fix Your Current Stack?</h2>
+    </div>
+    <p class="fade-in-up text-sm md:text-base text-white/60 mb-8 md:mb-10" style="transition-delay: 0.1s;">
+      We hear this a lot. Here's what actually happens.
+    </p>
+
+    <!-- Two-Path Comparison -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
+
+      <!-- PATH A - Fix What You Have -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8 flex flex-col" style="background: rgba(255,59,59,0.03); border: 1px solid rgba(255,59,59,0.15); transition-delay: 0.2s;">
+        <h3 class="text-lg md:text-xl font-bold mb-5" style="color:#ff3b3b;">Fix What You Have</h3>
+        <div class="space-y-4 flex-1">
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#ff3b3b;">✗</span>
+            <span class="text-sm text-white/80">3-6 months to integrate a margin layer</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#ff3b3b;">✗</span>
+            <span class="text-sm text-white/80">$40K+ custom dev work</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#ff3b3b;">✗</span>
+            <span class="text-sm text-white/80">Still 5 tools to maintain</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#ff3b3b;">✗</span>
+            <span class="text-sm text-white/80">Data lives in 5 places</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#ff3b3b;">✗</span>
+            <span class="text-sm text-white/80">Breaks every time a tool updates their API</span>
+          </div>
+        </div>
+        <div class="mt-6 pt-4" style="border-top: 1px solid rgba(255,59,59,0.2);">
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p class="text-sm font-bold" style="color:#ff3b3b;">$103K+/yr</p>
+              <p class="text-[10px] text-white/40">Total</p>
+            </div>
+            <div>
+              <p class="text-sm font-bold" style="color:#ff3b3b;">6+ months</p>
+              <p class="text-[10px] text-white/40">Time</p>
+            </div>
+            <div>
+              <p class="text-sm font-bold" style="color:#ff3b3b;">HIGH</p>
+              <p class="text-[10px] text-white/40">Risk</p>
+            </div>
+          </div>
+          <p class="text-[10px] text-white/30 text-center mt-2">(nothing guaranteed)</p>
+        </div>
+      </div>
+
+      <!-- PATH B - Switch to UnitPay -->
+      <div class="fade-in-up rounded-2xl p-6 md:p-8 flex flex-col" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.15); transition-delay: 0.35s;">
+        <h3 class="text-lg md:text-xl font-bold mb-5" style="color:#a4ea49;">Switch to UnitPay</h3>
+        <div class="space-y-4 flex-1">
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#a4ea49;">✓</span>
+            <span class="text-sm text-white">Live in 1 week</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#a4ea49;">✓</span>
+            <span class="text-sm text-white">All-in-one: metering, billing, analytics, alerts</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#a4ea49;">✓</span>
+            <span class="text-sm text-white">$299/mo (replaces $63K/yr)</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#a4ea49;">✓</span>
+            <span class="text-sm text-white">Real-time margins per customer, per transaction</span>
+          </div>
+          <div class="flex gap-3">
+            <span class="font-bold flex-shrink-0" style="color:#a4ea49;">✓</span>
+            <span class="text-sm text-white">One source of truth — forever</span>
+          </div>
+        </div>
+        <div class="mt-6 pt-4" style="border-top: 1px solid rgba(164,234,73,0.2);">
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p class="text-sm font-bold" style="color:#a4ea49;">$3,588/yr</p>
+              <p class="text-[10px] text-white/40">Total</p>
+            </div>
+            <div>
+              <p class="text-sm font-bold" style="color:#a4ea49;">1 week</p>
+              <p class="text-[10px] text-white/40">Time</p>
+            </div>
+            <div>
+              <p class="text-sm font-bold" style="color:#a4ea49;">ZERO</p>
+              <p class="text-[10px] text-white/40">Risk</p>
+            </div>
+          </div>
+          <p class="text-[10px] text-white/30 text-center mt-2">(free tier to start)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing Statement -->
+    <p class="fade-in-up text-sm md:text-base font-medium text-white text-center max-w-3xl mx-auto" style="transition-delay: 0.5s;">
+      The question isn't whether to fix your margins. It's whether to spend
+      <span style="color:#ff3b3b;">6 months and $100K</span> doing it, or
+      <span style="color:#a4ea49;">1 week and $0</span>.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">10 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 11 — CTA
+     ══════════════════════════════════════════════════════════════ -->
+<section class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12" id="slide-11">
+  <!-- Lime glow -->
+  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse at center, rgba(164,234,73,0.06) 0%, transparent 60%);"></div>
+
+  <div class="relative z-10 w-full max-w-3xl mx-auto text-center">
+
+    <!-- Headline -->
+    <div class="fade-in-up mb-8">
+      <h2 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
+        We'll build your demo<br>
+        <span style="color:#a4ea49;">before the call.</span>
+      </h2>
+    </div>
+
+    <!-- Value Props -->
+    <div class="fade-in-up space-y-3 mb-10" style="transition-delay: 0.15s;">
+      <div class="flex items-center justify-center gap-3">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs" style="background: rgba(164,234,73,0.15); color: #a4ea49;">✓</span>
+        <span class="text-base md:text-lg text-white">Your <span style="color:#a4ea49;">domain</span> pre-configured</span>
+      </div>
+      <div class="flex items-center justify-center gap-3">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs" style="background: rgba(164,234,73,0.15); color: #a4ea49;">✓</span>
+        <span class="text-base md:text-lg text-white">Your <span style="color:#a4ea49;">pricing model</span> imported</span>
+      </div>
+      <div class="flex items-center justify-center gap-3">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs" style="background: rgba(164,234,73,0.15); color: #a4ea49;">✓</span>
+        <span class="text-base md:text-lg text-white">Your first <span style="color:#a4ea49;">margin dashboard</span> ready</span>
+      </div>
+    </div>
+
+    <!-- CTA Button -->
+    <div class="fade-in-up mb-6" style="transition-delay: 0.3s;">
+      <a href="#" class="inline-block px-10 py-4 rounded-xl text-lg font-bold pulse-glow" style="background:#a4ea49; color:#003024; box-shadow: 0 4px 24px rgba(164,234,73,0.3);">
+        Start Free Trial →
+      </a>
+    </div>
+
+    <!-- Sub-CTA -->
+    <p class="fade-in-up text-sm text-white/60 mb-10" style="transition-delay: 0.4s;">
+      Free tier. No credit card. See your margins in 10 minutes.
+    </p>
+
+    <!-- QR + Contact -->
+    <div class="fade-in-up flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 mb-6" style="transition-delay: 0.5s;">
+      <!-- QR Code (decorative pattern) -->
+      <div class="w-28 h-28 rounded-lg p-2" style="background: #ffffff;">
+        <svg viewBox="0 0 100 100" class="w-full h-full">
+          <!-- QR-style decorative pattern -->
+          <rect width="100" height="100" fill="#ffffff"/>
+          <!-- Corner markers -->
+          <rect x="5" y="5" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="9" y="9" width="17" height="17" rx="1" fill="#ffffff"/>
+          <rect x="13" y="13" width="9" height="9" rx="1" fill="#0a0a0a"/>
+
+          <rect x="70" y="5" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="74" y="9" width="17" height="17" rx="1" fill="#ffffff"/>
+          <rect x="78" y="13" width="9" height="9" rx="1" fill="#0a0a0a"/>
+
+          <rect x="5" y="70" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="9" y="74" width="17" height="17" rx="1" fill="#ffffff"/>
+          <rect x="13" y="78" width="9" height="9" rx="1" fill="#0a0a0a"/>
+
+          <!-- Data pattern -->
+          <rect x="35" y="5" width="5" height="5" fill="#0a0a0a"/><rect x="45" y="5" width="5" height="5" fill="#0a0a0a"/><rect x="55" y="5" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="35" y="15" width="5" height="5" fill="#0a0a0a"/><rect x="50" y="15" width="5" height="5" fill="#0a0a0a"/><rect x="60" y="15" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="40" y="25" width="5" height="5" fill="#0a0a0a"/><rect x="55" y="25" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="5" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="15" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="35" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="50" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="65" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="80" y="35" width="5" height="5" fill="#0a0a0a"/><rect x="90" y="35" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="10" y="45" width="5" height="5" fill="#0a0a0a"/><rect x="25" y="45" width="5" height="5" fill="#0a0a0a"/><rect x="40" y="45" width="5" height="5" fill="#0a0a0a"/><rect x="55" y="45" width="5" height="5" fill="#0a0a0a"/><rect x="70" y="45" width="5" height="5" fill="#0a0a0a"/><rect x="85" y="45" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="5" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="20" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="35" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="45" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="60" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="75" y="55" width="5" height="5" fill="#0a0a0a"/><rect x="90" y="55" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="35" y="65" width="5" height="5" fill="#0a0a0a"/><rect x="50" y="65" width="5" height="5" fill="#0a0a0a"/><rect x="65" y="65" width="5" height="5" fill="#0a0a0a"/><rect x="80" y="65" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="40" y="75" width="5" height="5" fill="#0a0a0a"/><rect x="55" y="75" width="5" height="5" fill="#0a0a0a"/><rect x="70" y="75" width="5" height="5" fill="#0a0a0a"/><rect x="85" y="75" width="5" height="5" fill="#0a0a0a"/><rect x="90" y="75" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="35" y="85" width="5" height="5" fill="#0a0a0a"/><rect x="45" y="85" width="5" height="5" fill="#0a0a0a"/><rect x="60" y="85" width="5" height="5" fill="#0a0a0a"/><rect x="75" y="85" width="5" height="5" fill="#0a0a0a"/><rect x="90" y="85" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="40" y="90" width="5" height="5" fill="#0a0a0a"/><rect x="50" y="90" width="5" height="5" fill="#0a0a0a"/><rect x="65" y="90" width="5" height="5" fill="#0a0a0a"/><rect x="80" y="90" width="5" height="5" fill="#0a0a0a"/>
+          <!-- Center logo mark -->
+          <rect x="40" y="40" width="20" height="20" rx="3" fill="#ffffff"/>
+          <circle cx="50" cy="47" r="4" fill="#003024"/>
+          <circle cx="45" cy="55" r="3" fill="#003024" opacity="0.7"/>
+          <circle cx="55" cy="55" r="2.5" fill="#003024" opacity="0.5"/>
+        </svg>
+      </div>
+
+      <!-- Contact Info -->
+      <div class="text-left">
+        <p class="text-base font-medium" style="color:#a4ea49;">useunitpay.com</p>
+        <p class="text-base text-white/60 mt-1">hello@useunitpay.com</p>
+      </div>
+    </div>
+
+    <!-- Pre-call hook -->
+    <p class="fade-in-up text-xs font-medium mb-8" style="color:#a4ea49; transition-delay: 0.6s;">
+      We already ran your numbers. See what we found.
+    </p>
+
+    <!-- UnitPay Logo -->
+    <div class="fade-in-up" style="transition-delay: 0.7s;">
+      <svg viewBox="0 0 160 32" class="w-36 md:w-40 h-auto mx-auto" fill="none">
+        <circle cx="8" cy="10" r="4" fill="#a4ea49"/>
+        <circle cx="20" cy="22" r="3" fill="#a4ea49" opacity="0.7"/>
+        <circle cx="2" cy="22" r="2.5" fill="#a4ea49" opacity="0.5"/>
+        <line x1="8" y1="10" x2="20" y2="22" stroke="#a4ea49" stroke-width="1.2" opacity="0.5"/>
+        <line x1="8" y1="10" x2="2" y2="22" stroke="#a4ea49" stroke-width="1.2" opacity="0.5"/>
+        <text x="30" y="22" fill="#ffffff" font-family="Inter" font-weight="700" font-size="18">UnitPay</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 left-6 md:left-10 text-xs text-white/30 z-10">11 / 11</div>
+  <div class="absolute bottom-5 right-6 md:right-10 z-10">
+    <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none"><circle cx="12" cy="7" r="3" fill="#a4ea49"/><circle cx="6" cy="17" r="2.5" fill="#a4ea49" opacity="0.7"/><circle cx="18" cy="17" r="2" fill="#a4ea49" opacity="0.5"/><line x1="12" y1="7" x2="6" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="18" y2="17" stroke="#a4ea49" stroke-width="1" opacity="0.4"/></svg>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     JAVASCRIPT — Animations, Nav, Progress
+     ══════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  // ── Intersection Observer for fade-in-up elements ──
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    },
+    { threshold: 0.15 }
+  );
+
+  document.querySelectorAll('.fade-in-up').forEach((el) => observer.observe(el));
+
+  // ── Nav dots + Progress bar ──
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.nav-dot');
+  const progressBar = document.getElementById('progress-bar');
+
+  // Click on nav dot scrolls to slide
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.slide, 10);
+      slides[idx]?.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Scroll event for active dot + progress bar
+  const slideObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const idx = Array.from(slides).indexOf(entry.target);
+          dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+          // Update progress
+          const pct = ((idx + 1) / slides.length) * 100;
+          progressBar.style.width = pct + '%';
+        }
+      });
+    },
+    { threshold: 0.5 }
+  );
+
+  slides.forEach((s) => slideObserver.observe(s));
+})();
+</script>
+
+</body>
+</html>

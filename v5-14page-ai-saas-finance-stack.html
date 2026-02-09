@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth" style="scroll-snap-type: y mandatory; overflow-y: scroll;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UnitPay — The AI Revenue Engine | Draft 05 (14-Page)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace']
+      },
+      colors: {
+        brand: {
+          teal: '#003024',
+          lime: '#a4ea49',
+          mint: '#e1ead3',
+          black: '#0a0a0a',
+          danger: '#ff3b3b',
+          amber: '#f5a623',
+          slate: '#6b7280',
+          blue: '#79c0ff',
+          purple: '#c084fc',
+          card: '#111111',
+          border: '#1f1f1f',
+          dim: '#4b5563',
+          code: '#0d1117'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  html { font-size: 14px; }
+  @media (min-width: 768px) { html { font-size: 15px; } }
+  @media (min-width: 1280px) { html { font-size: 16px; } }
+
+  body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #ffffff; }
+
+  /* Hide scrollbar */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  html { scrollbar-width: none; -ms-overflow-style: none; }
+
+  /* Scroll snap */
+  .slide { scroll-snap-align: start; min-height: 100vh; position: relative; overflow: hidden; }
+
+  /* Grain overlay */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+  .no-grain::after { display: none; }
+
+  /* Dark gradient */
+  .bg-dark-gradient {
+    background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);
+  }
+  .bg-teal-gradient {
+    background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);
+  }
+
+  /* Animations */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Pulse glow */
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(164, 234, 73, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(164, 234, 73, 0.35); }
+  }
+  .pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .live-pulse { animation: livePulse 1.5s ease-in-out infinite; }
+
+  /* Nav dots */
+  .nav-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  .nav-dot.active {
+    background: #a4ea49;
+    box-shadow: 0 0 8px rgba(164, 234, 73, 0.4);
+    transform: scale(1.3);
+  }
+
+  /* Progress bar */
+  #progress-bar {
+    position: fixed; bottom: 0; left: 0; height: 2px;
+    background: #a4ea49; z-index: 100; transition: width 0.2s ease;
+  }
+
+  /* Slide footer */
+  .slide-footer {
+    position: absolute; bottom: 1.5rem; left: 2rem; right: 2rem;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 2;
+  }
+
+  /* Code syntax */
+  .syn-kw { color: #c084fc; }
+  .syn-str { color: #a4ea49; }
+  .syn-prop { color: #79c0ff; }
+  .syn-num { color: #f59e0b; }
+  .syn-comment { color: #6b7280; }
+  .syn-punct { color: rgba(255,255,255,0.6); }
+  .syn-check { color: #a4ea49; }
+  .syn-cross { color: #ff3b3b; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- NAVIGATION DOTS (Desktop only)                                -->
+<!-- ============================================================ -->
+<div id="nav-dots" class="fixed right-4 top-1/2 -translate-y-1/2 z-50 hidden lg:flex flex-col gap-2.5">
+</div>
+
+<!-- ============================================================ -->
+<!-- PROGRESS BAR                                                  -->
+<!-- ============================================================ -->
+<div id="progress-bar" style="width: 0%;"></div>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 01 — THE ERA SPLIT (HOOK)                               -->
+<!-- ============================================================ -->
+<section id="slide-01" class="slide no-grain flex flex-col items-center justify-center px-6 md:px-12 relative" style="background: #0a0a0a;">
+  <div class="slide-content w-full max-w-5xl flex flex-col items-center relative" style="z-index:2;">
+
+    <!-- Logo -->
+    <div class="fade-up mb-8 md:mb-12">
+      <svg width="120" height="32" viewBox="0 0 120 32" fill="none">
+        <text x="0" y="24" font-family="Inter" font-weight="800" font-size="22" fill="#ffffff">UnitPay</text>
+      </svg>
+    </div>
+
+    <!-- Old World (above line) -->
+    <div class="fade-up text-center mb-8" style="transition-delay: 0.15s;">
+      <p class="text-xl md:text-2xl font-normal" style="color: rgba(107,114,128,0.4);">$99/seat/month</p>
+      <p class="text-sm mt-1" style="color: rgba(107,114,128,0.3);">Flat. Predictable. Simple.</p>
+    </div>
+
+    <!-- Dividing Line -->
+    <div class="fade-up w-full relative flex items-center justify-center my-4" style="transition-delay: 0.3s;">
+      <div class="w-full h-px" style="background: rgba(164,234,73,0.3);"></div>
+      <div class="absolute flex flex-col items-center">
+        <span class="text-[9px] uppercase tracking-widest mb-1" style="color: #6b7280;">SaaS ERA</span>
+        <div class="w-2 h-2 rounded-full" style="background: #a4ea49;"></div>
+        <span class="text-[9px] uppercase tracking-widest mt-1" style="color: #a4ea49;">AI ERA</span>
+      </div>
+    </div>
+
+    <!-- New World (below line) -->
+    <div class="fade-up text-center mt-8" style="transition-delay: 0.45s;">
+      <h1 class="text-3xl md:text-[44px] font-bold leading-tight text-white">AI companies have a billing problem</h1>
+      <h1 class="text-3xl md:text-[44px] font-extrabold leading-tight mt-1" style="color: #a4ea49; text-shadow: 0px 0px 30px rgba(164,234,73,0.12);">no one built for — until now.</h1>
+    </div>
+
+    <!-- Old vs New Pricing -->
+    <div class="fade-up flex flex-col md:flex-row items-center gap-4 mt-10 w-full max-w-3xl" style="transition-delay: 0.6s;">
+      <!-- Old -->
+      <div class="flex-1 rounded-lg p-4 md:p-5 text-center" style="border: 1px solid rgba(107,114,128,0.15);">
+        <p class="text-lg md:text-xl font-normal" style="color: #6b7280;">$99/seat</p>
+        <p class="text-xs mt-1" style="color: rgba(107,114,128,0.5);">(simple)</p>
+      </div>
+      <!-- Arrow -->
+      <span class="text-xl" style="color: rgba(164,234,73,0.4);">→</span>
+      <!-- New -->
+      <div class="flex-1 rounded-lg p-4 md:p-5" style="border: 1px solid rgba(164,234,73,0.15);">
+        <p class="font-mono text-base" style="color: #a4ea49;">$0.034/token</p>
+        <p class="font-mono text-sm text-white mt-0.5">+ $0.01/compute second</p>
+        <p class="font-mono text-sm text-white">+ $0.002/search query</p>
+        <p class="font-mono text-xs mt-1" style="color: #f5a623;">× variable by model</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">01 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 02 — THE COST SCATTER (PROBLEM)                         -->
+<!-- ============================================================ -->
+<section id="slide-02" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl flex flex-col items-center" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-8 md:mb-10">
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white">Every AI interaction has a<br><span style="color: #f5a623;">different cost.</span></h2>
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white mt-1">But your billing treats them<br><span style="color: #ff3b3b;">all the same.</span></h2>
+    </div>
+
+    <!-- Cost Scatter -->
+    <div class="fade-up w-full max-w-3xl" style="transition-delay: 0.15s;">
+      <!-- Cost Chips -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">GPT-4 /token</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #ff3b3b;">$0.034</p>
+        </div>
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">GPT-3.5 /token</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #a4ea49;">$0.002</p>
+        </div>
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">DALL-E /image</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #ff3b3b;">$0.08</p>
+        </div>
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">SEARCH /query</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #f5a623;">$0.015</p>
+        </div>
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">EMBEDDINGS /token</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #a4ea49;">$0.0001</p>
+        </div>
+        <div class="rounded-lg p-3 md:p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="font-mono text-[10px] md:text-[11px] font-bold uppercase" style="color: #6b7280;">FINE-TUNE /hour</span>
+          <p class="font-mono text-lg md:text-xl font-bold mt-1" style="color: #ff3b3b;">$0.12</p>
+        </div>
+      </div>
+
+      <!-- Funnel Arrow -->
+      <div class="flex flex-col items-center my-4">
+        <div class="flex gap-1 mb-2">
+          <div class="w-px h-6" style="background: rgba(107,114,128,0.3);"></div>
+          <div class="w-px h-6" style="background: rgba(107,114,128,0.3);"></div>
+          <div class="w-px h-6" style="background: rgba(107,114,128,0.3);"></div>
+        </div>
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M12 16L0 0h24z" fill="rgba(107,114,128,0.3)"/></svg>
+      </div>
+
+      <!-- Flat Invoice -->
+      <div class="mx-auto max-w-[280px] rounded-xl p-5 text-center" style="background: #111111; border: 2px solid rgba(255,59,59,0.3);">
+        <span class="font-mono text-[10px] font-bold uppercase" style="color: #6b7280;">YOUR INVOICE</span>
+        <p class="text-2xl md:text-[28px] font-extrabold mt-2" style="color: #ff3b3b;">$500/mo flat</p>
+        <p class="text-sm italic mt-1" style="color: #6b7280;">(same for everyone)</p>
+      </div>
+    </div>
+
+    <!-- Subtext -->
+    <p class="fade-up text-center text-sm md:text-base mt-8 max-w-xl" style="color: rgba(255,255,255,0.6); transition-delay: 0.3s;">When you can't attribute cost to revenue at the <span class="text-white">transaction level</span>, you're <span style="color: #ff3b3b;">flying blind</span> on margins.</p>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">02 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 03 — LEGACY vs UNITPAY CHECKLIST                        -->
+<!-- ============================================================ -->
+<section id="slide-03" class="slide grain bg-teal-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-4xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up mb-8 md:mb-10">
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white">The finance stack for AI isn't<br><span style="color: #6b7280;">Stripe + spreadsheets.</span></h2>
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight mt-1" style="color: #a4ea49;">It's purpose-built infrastructure.</h2>
+    </div>
+
+    <!-- Column Headers -->
+    <div class="fade-up flex items-center gap-4 md:gap-6 mb-4" style="transition-delay: 0.15s;">
+      <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase" style="background: rgba(255,59,59,0.15); color: #ff3b3b;">Legacy Tools</span>
+      <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase" style="background: #a4ea49; color: #003024;">UnitPay</span>
+    </div>
+
+    <!-- Checklist -->
+    <div class="fade-up space-y-0" style="transition-delay: 0.3s;">
+      <!-- Row template -->
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4" style="border-bottom: 1px solid rgba(164,234,73,0.08);">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Per-token cost attribution</span>
+      </div>
+
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4" style="border-bottom: 1px solid rgba(164,234,73,0.08);">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Hybrid pricing (base + usage + credits)</span>
+      </div>
+
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4" style="border-bottom: 1px solid rgba(164,234,73,0.08);">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Real-time margin per customer</span>
+      </div>
+
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4" style="border-bottom: 1px solid rgba(164,234,73,0.08);">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Margin guardrails (alerts when costs spike)</span>
+      </div>
+
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4" style="border-bottom: 1px solid rgba(164,234,73,0.08);">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Pricing simulation on historical data</span>
+      </div>
+
+      <div class="flex items-center gap-4 md:gap-6 py-3 md:py-4">
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(255,59,59,0.08);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10.5 3.5L3.5 10.5M3.5 3.5l7 7" stroke="#ff3b3b" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#a4ea49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-base md:text-lg font-medium text-white">Global invoicing + tax compliance</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: rgba(164,234,73,0.3);">03 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="rgba(164,234,73,0.3)">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 04 — THE AI COST EXPLOSION (NEW - 14 page)              -->
+<!-- ============================================================ -->
+<section id="slide-04" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl flex flex-col items-center" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white">AI Infrastructure Costs Are Growing<br><span style="color: #ff3b3b;">10X Faster</span> Than Revenue</h2>
+    </div>
+
+    <!-- Growth Comparison Chart (SVG) -->
+    <div class="fade-up w-full max-w-[900px] rounded-2xl p-5 md:p-8 mb-6" style="background: #111111; border: 1px solid #1f1f1f; transition-delay: 0.15s;">
+      <svg viewBox="0 0 800 280" class="w-full" preserveAspectRatio="xMidYMid meet">
+        <!-- Grid lines -->
+        <line x1="60" y1="20" x2="60" y2="230" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="230" x2="780" y2="230" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="188" x2="780" y2="188" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="146" x2="780" y2="146" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="104" x2="780" y2="104" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="62" x2="780" y2="62" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="60" y1="20" x2="780" y2="20" stroke="#1f1f1f" stroke-width="1"/>
+
+        <!-- Y-axis labels -->
+        <text x="50" y="234" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">0%</text>
+        <text x="50" y="192" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">100%</text>
+        <text x="50" y="150" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">200%</text>
+        <text x="50" y="108" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">300%</text>
+        <text x="50" y="66" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">400%</text>
+        <text x="50" y="24" text-anchor="end" font-family="Inter" font-size="11" fill="#6b7280">500%</text>
+
+        <!-- X-axis labels -->
+        <text x="80" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q1'24</text>
+        <text x="160" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q2</text>
+        <text x="240" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q3</text>
+        <text x="320" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q4</text>
+        <text x="420" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q1'25</text>
+        <text x="500" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q2</text>
+        <text x="580" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q3</text>
+        <text x="660" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q4</text>
+        <text x="760" y="250" text-anchor="middle" font-family="Inter" font-size="10" fill="#6b7280">Q1'26</text>
+
+        <!-- Gap area (between lines) -->
+        <path d="M80,230 L160,222 L240,214 L320,205 L420,196 L500,188 L580,180 L660,172 L760,165
+                 L760,55 L660,80 L580,98 L500,120 L420,145 L320,168 L240,190 L160,210 L80,228 Z"
+              fill="rgba(255,59,59,0.08)"/>
+
+        <!-- Revenue line (green, steady growth ~100%) -->
+        <polyline points="80,230 160,222 240,214 320,205 420,196 500,188 580,180 660,172 760,165"
+                  fill="none" stroke="#a4ea49" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Cost line (red, exponential growth ~500%) -->
+        <polyline points="80,228 160,210 240,190 320,168 420,145 500,120 580,98 660,80 760,55"
+                  fill="none" stroke="#ff3b3b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Labels -->
+        <text x="770" y="160" font-family="Inter" font-weight="700" font-size="12" fill="#a4ea49">REVENUE</text>
+        <text x="770" y="50" font-family="Inter" font-weight="700" font-size="12" fill="#ff3b3b">COST</text>
+        <text x="500" y="135" font-family="Inter" font-size="11" fill="rgba(255,59,59,0.6)">MARGIN EROSION</text>
+      </svg>
+    </div>
+
+    <!-- Three Stat Cards -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-[900px]" style="transition-delay: 0.3s;">
+      <div class="rounded-xl p-5" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color: #ff3b3b;">73%</p>
+        <p class="text-sm mt-2" style="color: rgba(255,255,255,0.6);">of AI companies don't track per-unit costs</p>
+      </div>
+      <div class="rounded-xl p-5" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color: #ff3b3b;">4.2X</p>
+        <p class="text-sm mt-2" style="color: rgba(255,255,255,0.6);">avg cost increase when switching to GPT-4o</p>
+      </div>
+      <div class="rounded-xl p-5" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-3xl md:text-4xl font-extrabold" style="color: #6b7280;">$0</p>
+        <p class="text-sm mt-2" style="color: rgba(255,255,255,0.6);">spent on cost visibility tools (industry avg)</p>
+      </div>
+    </div>
+
+    <!-- Bottom quote -->
+    <p class="fade-up text-center text-sm md:text-base mt-6 font-medium" style="color: rgba(255,255,255,0.7); transition-delay: 0.45s;">Costs are sprinting. Revenue is jogging. And <span style="color: #ff3b3b;">nobody's watching the gap.</span></p>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">04 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 05 — WHY LEGACY TOOLS BREAK ON AI                      -->
+<!-- ============================================================ -->
+<section id="slide-05" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-4">
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white">AI Billing <span style="color: #ff3b3b;">Breaks Every Tool</span> Built for SaaS</h2>
+      <p class="text-sm md:text-base mt-2" style="color: rgba(255,255,255,0.6);">Here's exactly why — and it's not fixable with plugins.</p>
+    </div>
+
+    <!-- Three Failure Cards -->
+    <div class="fade-up space-y-3 md:space-y-4 mt-6" style="transition-delay: 0.15s;">
+
+      <!-- Failure 1 -->
+      <div class="rounded-xl p-5 md:p-6" style="background: #111111; border: 1px solid #1f1f1f; border-top: 3px solid #ff3b3b;">
+        <div class="flex items-center gap-2 mb-3">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2l1.5 4.5H15l-3.5 2.5 1.5 4.5L9 11l-4 2.5 1.5-4.5L3 6.5h4.5z" fill="#ff3b3b"/></svg>
+          <span class="text-sm font-bold uppercase" style="color: #ff3b3b;">Variable Cost Per Transaction</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <p class="text-sm" style="color: #6b7280;"><strong>SaaS:</strong> Every user costs ~the same to serve</p>
+            <p class="text-sm text-white mt-1"><strong>AI:</strong> One GPT-4 call = $0.12. One Llama call = $0.001.<br><span style="color: #a4ea49; font-weight: 700;">120X cost range</span>, same customer, same feature</p>
+          </div>
+          <div class="rounded-lg p-3 font-mono text-xs md:text-sm" style="background: #0a0a0a; border: 1px solid #1f1f1f;">
+            <p class="syn-comment">// Stripe Billing can do this:</p>
+            <p><span class="text-white">price:</span> <span class="syn-str">$99/seat/month</span> <span class="syn-check">&#10003;</span></p>
+            <p class="mt-2 syn-comment">// Stripe Billing CANNOT do this:</p>
+            <p><span class="text-white">price:</span> <span class="syn-prop">f</span><span class="syn-punct">(</span><span class="syn-str">model, tokens, latency, region</span><span class="syn-punct">)</span></p>
+            <p class="pl-6"><span class="syn-punct">×</span> <span class="syn-str">margin_target</span><span class="syn-punct">(</span><span class="syn-str">customer_tier</span><span class="syn-punct">)</span> <span class="syn-cross">&#10007;</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Failure 2 -->
+      <div class="rounded-xl p-5 md:p-6" style="background: #111111; border: 1px solid #1f1f1f; border-top: 3px solid #ff3b3b;">
+        <div class="flex items-center gap-2 mb-3">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2l1.5 4.5H15l-3.5 2.5 1.5 4.5L9 11l-4 2.5 1.5-4.5L3 6.5h4.5z" fill="#ff3b3b"/></svg>
+          <span class="text-sm font-bold uppercase" style="color: #ff3b3b;">Multi-Dimensional Metering</span>
+        </div>
+        <p class="text-sm" style="color: #6b7280;"><strong>SaaS:</strong> Track 1 dimension (seats or API calls)</p>
+        <p class="text-sm text-white mt-1"><strong>AI:</strong> Track 5+ simultaneously: <span class="font-mono text-xs" style="color: #a4ea49;">tokens × model × latency × region × feature</span></p>
+        <p class="text-sm mt-2 text-white">Orb meters ONE dimension well. AI needs <strong>ALL dimensions correlated</strong> per transaction.</p>
+      </div>
+
+      <!-- Failure 3 -->
+      <div class="rounded-xl p-5 md:p-6" style="background: #111111; border: 1px solid #1f1f1f; border-top: 3px solid #ff3b3b;">
+        <div class="flex items-center gap-2 mb-3">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2l1.5 4.5H15l-3.5 2.5 1.5 4.5L9 11l-4 2.5 1.5-4.5L3 6.5h4.5z" fill="#ff3b3b"/></svg>
+          <span class="text-sm font-bold uppercase" style="color: #ff3b3b;">Real-Time Cost Attribution</span>
+        </div>
+        <p class="text-sm" style="color: #6b7280;"><strong>SaaS:</strong> Allocate infra costs monthly (close enough)</p>
+        <p class="text-sm text-white mt-1"><strong>AI:</strong> Cost changes PER CALL. A model switch at 2pm changes your margin by <span style="color: #a4ea49; font-weight: 700;">40% — instantly.</span></p>
+        <p class="text-sm mt-2 text-white">No billing tool does real-time COGS tracking. <span style="color: #a4ea49; font-weight: 700;">UnitPay does.</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">05 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 06 — TRACK / PRICE / PROTECT (THREE PILLARS)            -->
+<!-- ============================================================ -->
+<section id="slide-06" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-6xl" style="z-index:2;">
+
+    <!-- Label + Headline -->
+    <div class="fade-up mb-8 md:mb-10">
+      <span class="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase mb-3" style="background: rgba(164,234,73,0.1); color: #a4ea49; border: 1px solid rgba(164,234,73,0.2);">THE ENGINE</span>
+      <h2 class="text-2xl md:text-[44px] font-extrabold leading-tight text-white">The revenue engine built for how<br><span style="color: #a4ea49;">AI companies</span> actually work.</h2>
+    </div>
+
+    <!-- Three Pillars -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6" style="transition-delay: 0.2s;">
+
+      <!-- Pillar 1: TRACK -->
+      <div class="rounded-2xl p-6 md:p-7 flex flex-col" style="background: #111111; border: 1px solid rgba(164,234,73,0.1);">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center" style="background: rgba(164,234,73,0.1);">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="8" stroke="#a4ea49" stroke-width="2" fill="none"/><circle cx="14" cy="14" r="3" fill="#a4ea49"/><line x1="14" y1="2" x2="14" y2="6" stroke="#a4ea49" stroke-width="2"/><line x1="14" y1="22" x2="14" y2="26" stroke="#a4ea49" stroke-width="2"/></svg>
+          </div>
+          <span class="text-xs font-bold" style="color: #6b7280;">01</span>
+        </div>
+        <h3 class="text-xl md:text-2xl font-extrabold uppercase mb-3" style="color: #a4ea49;">TRACK</h3>
+        <p class="text-sm md:text-base mb-4" style="color: #e1ead3;">Every token, every compute cycle, every dollar — attributed to the customer who triggered it.</p>
+        <div class="mt-auto rounded-md p-3 font-mono text-[11px]" style="background: #0a0a0a; border-radius: 6px;">
+          <span style="color:#6b7280;">{ trace:</span> <span style="color:#a4ea49;">"evt_8923"</span><span style="color:#6b7280;">,</span><br>
+          <span style="color:#6b7280;">&nbsp;&nbsp;tokens:</span> <span style="color:#f5a623;">842</span><span style="color:#6b7280;">,</span><br>
+          <span style="color:#6b7280;">&nbsp;&nbsp;cost:</span> <span style="color:#a4ea49;">"$0.024"</span> <span style="color:#6b7280;">}</span>
+        </div>
+      </div>
+
+      <!-- Pillar 2: PRICE -->
+      <div class="rounded-2xl p-6 md:p-7 flex flex-col" style="background: #111111; border: 1px solid rgba(164,234,73,0.1);">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center" style="background: rgba(164,234,73,0.1);">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="6" y="8" width="16" height="12" rx="2" stroke="#a4ea49" stroke-width="2" fill="none"/><path d="M10 14h8M14 11v6" stroke="#a4ea49" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <span class="text-xs font-bold" style="color: #6b7280;">02</span>
+        </div>
+        <h3 class="text-xl md:text-2xl font-extrabold uppercase mb-3" style="color: #a4ea49;">PRICE</h3>
+        <p class="text-sm md:text-base mb-4" style="color: #e1ead3;">Usage-based, subscription, hybrid, outcome-based. Launch or change pricing models in minutes.</p>
+        <div class="mt-auto space-y-1.5">
+          <div class="rounded-full px-3 py-1 text-[10px] font-mono" style="border: 1px solid #a4ea49; color: #a4ea49;">Usage-based</div>
+          <div class="rounded-full px-3 py-1 text-[10px] font-mono" style="border: 1px solid #4b5563; color: #6b7280;">Subscription</div>
+          <div class="rounded-full px-3 py-1 text-[10px] font-mono" style="border: 1px solid #4b5563; color: #6b7280;">Hybrid</div>
+        </div>
+      </div>
+
+      <!-- Pillar 3: PROTECT -->
+      <div class="rounded-2xl p-6 md:p-7 flex flex-col" style="background: #111111; border: 1px solid rgba(164,234,73,0.1);">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center" style="background: rgba(164,234,73,0.1);">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 4l8 4v6c0 5.5-3.5 10-8 12-4.5-2-8-6.5-8-12V8l8-4z" stroke="#a4ea49" stroke-width="2" fill="none"/></svg>
+          </div>
+          <span class="text-xs font-bold" style="color: #6b7280;">03</span>
+        </div>
+        <h3 class="text-xl md:text-2xl font-extrabold uppercase mb-3" style="color: #a4ea49;">PROTECT</h3>
+        <p class="text-sm md:text-base mb-4" style="color: #e1ead3;">Margin guardrails. Get alerted before costs eat your revenue.</p>
+        <div class="mt-auto rounded-md p-2.5 font-mono text-[10px]" style="background: rgba(255,59,59,0.08); border: 1px solid rgba(255,59,59,0.2); border-radius: 6px;">
+          <span style="color: #ff3b3b;">&#9888;</span> <span class="text-white">Agent Sales_Bot_V2</span><br>
+          <span style="color: #ff3b3b;">&nbsp;&nbsp;dropped below 15% margin</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">06 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 07 — DATA CARDS (LIVE PROOF)                            -->
+<!-- ============================================================ -->
+<section id="slide-07" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-6xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[40px] font-extrabold leading-tight" style="color: #a4ea49;">Transaction-level clarity.</h2>
+      <h2 class="text-2xl md:text-[40px] font-extrabold leading-tight" style="color: #6b7280;">Not monthly averages.</h2>
+    </div>
+
+    <!-- Three Data Cards -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-5" style="transition-delay: 0.15s;">
+
+      <!-- Card 1: Transaction Breakdown -->
+      <div class="rounded-2xl p-5 md:p-6" style="background: #111111; border: 1px solid #1f1f1f; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-medium" style="color: #6b7280;">Transaction</span>
+          <span class="text-xs font-medium px-2 py-0.5 rounded" style="background: #1a1a1a; color: #fff;">#8921</span>
+        </div>
+        <div class="space-y-2.5">
+          <div class="flex justify-between"><span class="text-sm" style="color: rgba(255,255,255,0.7);">Revenue</span><span class="text-base font-bold text-white">$0.1500</span></div>
+          <div class="flex justify-between"><span class="text-sm" style="color: rgba(255,255,255,0.7);">LLM Cost</span><span class="text-base font-bold" style="color: #ff3b3b;">-$0.0342</span></div>
+          <div class="flex justify-between"><span class="text-sm" style="color: rgba(255,255,255,0.7);">Compute</span><span class="text-base font-bold" style="color: #ff3b3b;">-$0.0100</span></div>
+        </div>
+        <div class="my-3 h-px" style="background: #1f1f1f;"></div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm" style="color: rgba(255,255,255,0.7);">Net Margin</span>
+          <span class="text-xl md:text-2xl font-extrabold" style="color: #a4ea49;">+70.5%</span>
+        </div>
+        <div class="mt-3 h-2 rounded-full overflow-hidden" style="background: #1a1a1a;">
+          <div class="h-full rounded-full" style="width: 70.5%; background: #a4ea49;"></div>
+        </div>
+      </div>
+
+      <!-- Card 2: Event Trace (JSON) -->
+      <div class="rounded-2xl p-5 md:p-6" style="background: #0d1117; border: 1px solid #1f1f1f; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-medium" style="color: #6b7280;">Granular Attribution</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full live-pulse" style="background: #a4ea49;"></span><span class="font-mono text-[10px] font-bold" style="color: #a4ea49;">LIVE</span></span>
+        </div>
+        <pre class="font-mono text-[11px] md:text-xs leading-relaxed"><span style="color:#4b5563;">{</span>
+  <span style="color:#6b7280;">trace_id:</span>    <span style="color:#a4ea49;">"evt_8923"</span>
+  <span style="color:#6b7280;">user:</span>        <span style="color:#a4ea49;">"customer_A"</span>
+  <span style="color:#6b7280;">model:</span>       <span style="color:#f5a623;">"gpt-4-turbo"</span>
+  <span style="color:#6b7280;">tokens:</span>      <span style="color:#79c0ff;">842</span>
+  <span style="color:#6b7280;">input_cost:</span>  <span style="color:#ff3b3b;">"$0.0192"</span>
+  <span style="color:#6b7280;">output_cost:</span> <span style="color:#ff3b3b;">"$0.0150"</span>
+  <span style="color:#6b7280;">compute:</span>     <span style="color:#ff3b3b;">"$0.0100"</span>
+  <span style="color:#6b7280;">total_cost:</span>  <span style="color:#ff3b3b;">"$0.0442"</span>
+  <span style="color:#6b7280;">margin:</span>      <span style="color:#a4ea49;">"70.5%"</span>
+<span style="color:#4b5563;">}</span></pre>
+      </div>
+
+      <!-- Card 3: Margin Trend -->
+      <div class="rounded-2xl p-5 md:p-6" style="background: #111111; border: 1px solid #1f1f1f; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+        <span class="text-xs font-medium" style="color: #6b7280;">Profitability</span>
+        <div class="mt-3 mb-2">
+          <span class="text-[11px] font-medium uppercase" style="color: #6b7280;">NET PROFIT</span>
+          <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">+24.5%</p>
+        </div>
+        <!-- Mini area chart -->
+        <svg viewBox="0 0 240 100" class="w-full mt-2" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#a4ea49" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#a4ea49" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M20,72 L80,58 L140,44 L200,32 L200,90 L20,90 Z" fill="url(#profitFill)"/>
+          <polyline points="20,72 80,58 140,44 200,32" fill="none" stroke="#a4ea49" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="20" cy="72" r="3" fill="#a4ea49"/><circle cx="80" cy="58" r="3" fill="#a4ea49"/><circle cx="140" cy="44" r="3" fill="#a4ea49"/><circle cx="200" cy="32" r="3" fill="#a4ea49"/>
+          <text x="20" y="98" font-family="JetBrains Mono" font-size="9" fill="#6b7280" text-anchor="middle">Jan</text>
+          <text x="80" y="98" font-family="JetBrains Mono" font-size="9" fill="#6b7280" text-anchor="middle">Feb</text>
+          <text x="140" y="98" font-family="JetBrains Mono" font-size="9" fill="#6b7280" text-anchor="middle">Mar</text>
+          <text x="200" y="98" font-family="JetBrains Mono" font-size="9" fill="#6b7280" text-anchor="middle">Apr</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Margin Alert Bar -->
+    <div class="fade-up w-full rounded-xl px-5 py-3 flex items-center gap-3" style="background: rgba(255,59,59,0.08); border: 1px solid rgba(255,59,59,0.3); transition-delay: 0.3s;">
+      <span style="color: #ff3b3b;">&#9888;</span>
+      <span class="text-sm text-white"><strong style="color: #ff3b3b;">Margin Alert:</strong> Agent Sales_Bot_V2 below 15%</span>
+      <span class="ml-auto text-xs font-medium" style="color: #ff3b3b;">View Details →</span>
+    </div>
+
+    <!-- Subtext -->
+    <p class="fade-up text-center text-sm mt-4" style="color: rgba(255,255,255,0.6); transition-delay: 0.45s;">This isn't a report. This is every transaction, in real-time, for every customer.</p>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">07 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 08 — THE TOKEN ECONOMICS ENGINE                         -->
+<!-- ============================================================ -->
+<section id="slide-08" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-xl md:text-[34px] font-bold leading-tight text-white">Track <span style="color: #a4ea49;">Every Token</span>. Price <span style="color: #a4ea49;">Every Model</span>. Protect <span style="color: #a4ea49;">Every Margin</span>.</h2>
+    </div>
+
+    <!-- Token Economics Dashboard -->
+    <div class="fade-up w-full rounded-2xl p-5 md:p-7" style="background: #0a0a0a; border: 1px solid #1f1f1f; box-shadow: 0 16px 48px rgba(0,0,0,0.4); transition-delay: 0.15s;">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-5">
+        <span class="text-sm font-medium text-white">Token Economics</span>
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full live-pulse" style="background: #a4ea49;"></span><span class="font-mono text-[10px] font-bold" style="color: #a4ea49;">LIVE</span></span>
+          <span class="text-xs" style="color: #6b7280;">Last 24h</span>
+        </div>
+      </div>
+
+      <!-- Model Cost Table -->
+      <div class="overflow-x-auto mb-5">
+        <table class="w-full text-left">
+          <thead>
+            <tr style="border-bottom: 1px solid #1f1f1f;">
+              <th class="text-[11px] font-bold uppercase pb-2" style="color: #6b7280;">Model</th>
+              <th class="text-[11px] font-bold uppercase pb-2" style="color: #6b7280;">Input</th>
+              <th class="text-[11px] font-bold uppercase pb-2" style="color: #6b7280;">Output</th>
+              <th class="text-[11px] font-bold uppercase pb-2" style="color: #6b7280;">Avg Cost</th>
+            </tr>
+          </thead>
+          <tbody class="font-mono text-sm">
+            <tr style="border-bottom: 1px solid #1f1f1f;">
+              <td class="py-2.5 text-white font-inter font-medium text-sm">GPT-4o</td>
+              <td class="py-2.5" style="color: #f59e0b;">$0.005</td>
+              <td class="py-2.5" style="color: #ff3b3b;">$0.015</td>
+              <td class="py-2.5" style="color: #ff3b3b;">$0.034</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #1f1f1f;">
+              <td class="py-2.5 text-white font-inter font-medium text-sm">Claude 4.5</td>
+              <td class="py-2.5" style="color: #f59e0b;">$0.003</td>
+              <td class="py-2.5" style="color: #ff3b3b;">$0.015</td>
+              <td class="py-2.5" style="color: #ff3b3b;">$0.028</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #1f1f1f;">
+              <td class="py-2.5 text-white font-inter font-medium text-sm">Llama 3.2</td>
+              <td class="py-2.5" style="color: #a4ea49;">$0.0002</td>
+              <td class="py-2.5" style="color: #a4ea49;">$0.0006</td>
+              <td class="py-2.5" style="color: #a4ea49;">$0.001</td>
+            </tr>
+            <tr>
+              <td class="py-2.5 text-white font-inter font-medium text-sm">Mixtral</td>
+              <td class="py-2.5" style="color: #a4ea49;">$0.0003</td>
+              <td class="py-2.5" style="color: #f59e0b;">$0.001</td>
+              <td class="py-2.5" style="color: #a4ea49;">$0.002</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bottom Row: Margin by Customer + Token Flow -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Margin by Customer -->
+        <div class="rounded-xl p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="text-[11px] font-bold uppercase" style="color: #6b7280;">Margin by Customer</span>
+          <div class="mt-3 space-y-2.5">
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-white">Acme</span><span style="color: #a4ea49;">71%</span></div><div class="h-2 rounded-full" style="background: #1f1f1f;"><div class="h-full rounded-full" style="width: 71%; background: #a4ea49;"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-white">TechCo</span><span style="color: #f59e0b;">58%</span></div><div class="h-2 rounded-full" style="background: #1f1f1f;"><div class="h-full rounded-full" style="width: 58%; background: #f59e0b;"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-white">DataInc</span><span style="color: #f59e0b;">43%</span></div><div class="h-2 rounded-full" style="background: #1f1f1f;"><div class="h-full rounded-full" style="width: 43%; background: #f59e0b;"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-white">CloudAI</span><span style="color: #ff3b3b;">19%</span></div><div class="h-2 rounded-full" style="background: #1f1f1f;"><div class="h-full rounded-full" style="width: 19%; background: #ff3b3b;"></div></div></div>
+          </div>
+        </div>
+        <!-- Token Flow -->
+        <div class="rounded-xl p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+          <span class="text-[11px] font-bold uppercase" style="color: #6b7280;">Token Flow</span>
+          <p class="text-base font-bold text-white mt-2">12.4M <span class="text-xs font-normal" style="color: #6b7280;">tokens today</span></p>
+          <div class="mt-3 space-y-2">
+            <div class="flex items-center gap-2"><div class="h-5 rounded" style="width: 62%; background: #3b82f6;"></div><span class="text-[10px] font-mono" style="color: #6b7280;">GPT-4o 62%</span></div>
+            <div class="flex items-center gap-2"><div class="h-5 rounded" style="width: 28%; background: #a4ea49;"></div><span class="text-[10px] font-mono" style="color: #6b7280;">Claude 28%</span></div>
+            <div class="flex items-center gap-2"><div class="h-5 rounded" style="width: 10%; background: #f59e0b;"></div><span class="text-[10px] font-mono" style="color: #6b7280;">Llama 10%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three Unique Feature Cards -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-3 gap-4 mt-5" style="transition-delay: 0.3s;">
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-sm text-white">Auto-detect model from API headers</p>
+        <p class="text-[11px] mt-1" style="color: #a4ea49;">Zero manual configuration</p>
+      </div>
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-sm text-white">Margin alerts when token costs spike</p>
+        <p class="text-[11px] mt-1" style="color: #a4ea49;">Real-time protection</p>
+      </div>
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <p class="text-sm text-white">Model cost comparison recommendations</p>
+        <p class="text-[11px] mt-1" style="color: #a4ea49;">Optimize automatically</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">08 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 09 — THE DEVELOPER SDK (NEW - 14 page)                  -->
+<!-- ============================================================ -->
+<section id="slide-09" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-4xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[38px] font-bold leading-tight text-white">Built for <span style="color: #79c0ff;">Engineers</span>. Loved by <span style="color: #a4ea49;">Finance</span>.</h2>
+    </div>
+
+    <!-- Code Block -->
+    <div class="fade-up w-full rounded-xl p-5 md:p-7 mb-6" style="background: #0a0a0a; border: 1px solid #1f1f1f; transition-delay: 0.15s;">
+      <pre class="font-mono text-xs md:text-sm leading-relaxed overflow-x-auto"><span class="syn-comment">// Track a billing event — 3 lines of code</span>
+
+<span class="syn-kw">import</span> <span class="syn-punct">{</span> <span class="text-white">UnitPay</span> <span class="syn-punct">}</span> <span class="syn-kw">from</span> <span class="syn-str">'@unitpay/sdk'</span><span class="syn-punct">;</span>
+
+<span class="syn-kw">const</span> <span class="text-white">unitpay</span> <span class="syn-punct">=</span> <span class="syn-kw">new</span> <span class="text-white">UnitPay</span><span class="syn-punct">(</span><span class="syn-str">'sk_live_...'</span><span class="syn-punct">);</span>
+
+<span class="syn-kw">await</span> <span class="text-white">unitpay</span><span class="syn-punct">.</span><span class="text-white">track</span><span class="syn-punct">({</span>
+  <span class="syn-prop">customer</span><span class="syn-punct">:</span> <span class="syn-str">'cust_acme_corp'</span><span class="syn-punct">,</span>
+  <span class="syn-prop">event</span><span class="syn-punct">:</span>    <span class="syn-str">'api_call'</span><span class="syn-punct">,</span>
+  <span class="syn-prop">properties</span><span class="syn-punct">: {</span>
+    <span class="syn-prop">model</span><span class="syn-punct">:</span>      <span class="syn-str">'gpt-4o'</span><span class="syn-punct">,</span>
+    <span class="syn-prop">tokens_in</span><span class="syn-punct">:</span>  <span class="syn-num">1247</span><span class="syn-punct">,</span>
+    <span class="syn-prop">tokens_out</span><span class="syn-punct">:</span> <span class="syn-num">3891</span><span class="syn-punct">,</span>
+    <span class="syn-prop">latency_ms</span><span class="syn-punct">:</span> <span class="syn-num">342</span><span class="syn-punct">,</span>
+    <span class="syn-prop">region</span><span class="syn-punct">:</span>     <span class="syn-str">'us-east-1'</span>
+  <span class="syn-punct">}</span>
+<span class="syn-punct">});</span>
+
+<span class="syn-comment">// That's it. UnitPay handles:</span>
+<span class="syn-comment">// → Cost calculation</span>
+<span class="syn-comment">// → Margin tracking</span>
+<span class="syn-comment">// → Invoice generation</span>
+<span class="syn-comment">// → Alert monitoring</span></pre>
+    </div>
+
+    <!-- Three Integration Cards -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-3 gap-4" style="transition-delay: 0.3s;">
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <h4 class="text-sm font-bold mb-1" style="color: #79c0ff;">SDK</h4>
+        <p class="text-xs" style="color: rgba(255,255,255,0.8);">Node, Python, Go, Ruby</p>
+        <p class="font-mono text-[11px] mt-2" style="color: #a4ea49;">npm install @unitpay/sdk</p>
+      </div>
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <h4 class="text-sm font-bold mb-1" style="color: #79c0ff;">REST API</h4>
+        <p class="text-xs" style="color: rgba(255,255,255,0.8);">OpenAPI spec, Full CRUD operations</p>
+        <p class="text-xs mt-2" style="color: #6b7280;">Sandbox + Production</p>
+      </div>
+      <div class="rounded-lg p-4" style="background: #111111; border: 1px solid #1f1f1f;">
+        <h4 class="text-sm font-bold mb-1" style="color: #79c0ff;">Webhooks</h4>
+        <p class="text-xs" style="color: rgba(255,255,255,0.8);">Real-time events for every billing state change</p>
+        <p class="text-xs mt-2" style="color: #6b7280;">Retry logic built in</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">09 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 10 — AI COMPANY TRANSFORMATION (STORY)                  -->
+<!-- ============================================================ -->
+<section id="slide-10" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[38px] font-bold leading-tight text-white">They Were Losing <span style="color: #ff3b3b;">$0.02 Per API Call</span><br>and Didn't Know It</h2>
+    </div>
+
+    <!-- Before / After Cards -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-2 gap-5 mb-6" style="transition-delay: 0.15s;">
+      <!-- Before -->
+      <div class="rounded-2xl p-5 md:p-6" style="background: rgba(255,59,59,0.03); border: 1px solid rgba(255,59,59,0.15);">
+        <h3 class="text-sm font-bold uppercase mb-3" style="color: #ff3b3b;">THE PROBLEM</h3>
+        <ul class="space-y-2 text-sm" style="color: rgba(255,255,255,0.8);">
+          <li>&#8226; Billing by API calls (flat rate, all models same price)</li>
+          <li>&#8226; GPT-4 calls costing 3X the flat price</li>
+          <li>&#8226; No visibility into per-customer cost</li>
+        </ul>
+        <div class="mt-4 rounded-lg p-3" style="background: rgba(255,59,59,0.08); border: 1px solid rgba(255,59,59,0.25);">
+          <span class="text-xs font-bold uppercase" style="color: #ff3b3b;">HIDDEN LOSS</span>
+          <p class="font-mono text-sm mt-1" style="color: #ff3b3b;">$0.02/call × 2M calls<br>= <span class="text-base font-bold">$40K/month BLEED</span></p>
+        </div>
+      </div>
+
+      <!-- After -->
+      <div class="rounded-2xl p-5 md:p-6" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.15);">
+        <h3 class="text-sm font-bold uppercase mb-3" style="color: #a4ea49;">THE RESULT</h3>
+        <ul class="space-y-2 text-sm" style="color: rgba(255,255,255,0.8);">
+          <li>&#8226; Billing by tokens × model × customer tier</li>
+          <li>&#8226; Per-call profitability visible in real time</li>
+          <li>&#8226; Auto-routing to cheaper models when quality allows</li>
+        </ul>
+        <div class="mt-4 rounded-lg p-3" style="background: rgba(164,234,73,0.08); border: 1px solid rgba(164,234,73,0.25);">
+          <span class="text-xs font-bold uppercase" style="color: #a4ea49;">NET RESULT</span>
+          <p class="text-lg md:text-xl font-extrabold mt-1" style="color: #a4ea49;">+34% gross margin</p>
+          <p class="text-sm font-medium" style="color: #a4ea49;">in 90 days</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quote -->
+    <div class="fade-up rounded-xl p-5 mb-5" style="background: rgba(255,255,255,0.02); border: 1px solid #1f1f1f; transition-delay: 0.3s;">
+      <p class="text-sm md:text-base italic" style="color: rgba(255,255,255,0.8);">"We didn't even know GPT-4 calls were underwater until UnitPay showed us the per-model breakdown. We switched our heavy users to Claude and margin jumped 34% overnight."</p>
+      <p class="text-xs mt-3" style="color: #6b7280;">— CTO, Series A AI Platform</p>
+    </div>
+
+    <!-- Three Metrics -->
+    <div class="fade-up grid grid-cols-3 gap-4" style="transition-delay: 0.45s;">
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">+34%</p>
+        <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">margin increase</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #ff3b3b;">$40K/mo</p>
+        <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">bleed stopped</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl md:text-3xl font-extrabold" style="color: #a4ea49;">Day 1</p>
+        <p class="text-xs mt-1" style="color: rgba(255,255,255,0.6);">visibility achieved</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">10 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 11 — TRACTION & MOMENTUM                                -->
+<!-- ============================================================ -->
+<section id="slide-11" class="slide grain bg-teal-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-8 md:mb-10">
+      <h2 class="text-2xl md:text-[40px] font-bold leading-tight text-white">Built by AI builders,<br>for <span style="color: #a4ea49;">AI builders.</span></h2>
+    </div>
+
+    <!-- Metrics Row -->
+    <div class="fade-up grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-10" style="transition-delay: 0.15s;">
+      <div class="text-center md:text-left" style="border-right: 1px solid rgba(164,234,73,0.12); padding-right: 1rem;">
+        <p class="text-4xl md:text-6xl font-extrabold" style="color: #a4ea49;">3</p>
+        <p class="text-sm font-medium text-white mt-1">AI-SaaS companies</p>
+        <p class="text-xs mt-0.5" style="color: rgba(225,234,211,0.6);">tracking margins in real-time</p>
+      </div>
+      <div class="text-center md:text-left" style="border-right: 1px solid rgba(164,234,73,0.12); padding-right: 1rem;">
+        <p class="text-4xl md:text-6xl font-extrabold" style="color: #a4ea49;">10</p>
+        <p class="text-sm font-medium text-white mt-1">companies migrating</p>
+        <p class="text-xs mt-0.5" style="color: rgba(225,234,211,0.6);">from Stripe + spreadsheets</p>
+      </div>
+      <div class="text-center md:text-left" style="border-right: 1px solid rgba(164,234,73,0.12); padding-right: 1rem;">
+        <p class="text-3xl md:text-5xl font-extrabold" style="color: #a4ea49;">10-line</p>
+        <p class="text-sm font-medium text-white mt-1">SDK setup</p>
+        <p class="text-xs mt-0.5" style="color: rgba(225,234,211,0.6);">TypeScript, Python, Go</p>
+      </div>
+      <div class="text-center md:text-left">
+        <p class="text-4xl md:text-6xl font-extrabold" style="color: #a4ea49;"><span class="text-3xl md:text-4xl">$</span>299</p>
+        <p class="text-sm font-medium text-white mt-1">/month — all-inclusive</p>
+        <p class="text-xs mt-0.5" style="color: rgba(225,234,211,0.6);">replaces $5K/month stack</p>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="fade-up w-full max-w-3xl mx-auto rounded-xl p-5 md:p-6" style="background: #002a1f; border: 1px solid rgba(164,234,73,0.1); transition-delay: 0.3s;">
+      <table class="w-full text-left">
+        <thead>
+          <tr style="border-bottom: 1px solid #1f1f1f;">
+            <th class="text-[11px] font-bold uppercase pb-3" style="color: #6b7280;">Feature</th>
+            <th class="text-[11px] font-bold uppercase pb-3" style="color: #6b7280;">Legacy Tools</th>
+            <th class="text-[11px] font-bold uppercase pb-3" style="color: #6b7280;">UnitPay</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td class="py-3 text-sm font-medium text-white">Pricing Model</td>
+            <td class="py-3 text-sm" style="color: rgba(255,59,59,0.7);">Seats or usage only</td>
+            <td class="py-3 text-sm font-medium" style="color: #a4ea49;">Outcome pricing built in</td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td class="py-3 text-sm font-medium text-white">Cost Tracking</td>
+            <td class="py-3 text-sm" style="color: rgba(255,59,59,0.7);">Vendor totals only</td>
+            <td class="py-3 text-sm font-medium" style="color: #a4ea49;">Full AI cost split</td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td class="py-3 text-sm font-medium text-white">Margin Control</td>
+            <td class="py-3 text-sm" style="color: rgba(255,59,59,0.7);">No margin control</td>
+            <td class="py-3 text-sm font-medium" style="color: #a4ea49;">Per-customer guardrails</td>
+          </tr>
+          <tr>
+            <td class="py-3 text-sm font-medium text-white">Implementation</td>
+            <td class="py-3 text-sm" style="color: rgba(255,59,59,0.7);">Weeks to instrument</td>
+            <td class="py-3 text-sm font-medium" style="color: #a4ea49;">~10-line SDK setup</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bottom Line -->
+    <p class="fade-up text-center text-base md:text-lg font-medium mt-6" style="color: #e1ead3; transition-delay: 0.45s;"><span style="color: #a4ea49;">$200K</span> raised. Category-defining product.</p>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: rgba(164,234,73,0.3);">11 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="rgba(164,234,73,0.3)">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 12 — COMPLETE AI FINANCE OS (FULL STACK)                -->
+<!-- ============================================================ -->
+<section id="slide-12" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-5xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[38px] font-bold leading-tight text-white">One Platform. <span style="color: #a4ea49;">Every Layer</span> of AI Finance.</h2>
+    </div>
+
+    <!-- Stack Diagram -->
+    <div class="fade-up w-full max-w-3xl mx-auto rounded-2xl p-5 md:p-7 mb-6" style="background: #0a0a0a; border: 1px solid #1f1f1f; transition-delay: 0.15s;">
+      <div class="space-y-2">
+        <!-- Layer 5 (top, most vivid) -->
+        <div class="rounded-lg px-4 py-3 flex items-center gap-3" style="background: rgba(164,234,73,0.12); border: 1px solid rgba(164,234,73,0.3);">
+          <span class="text-[11px] font-bold" style="color: #a4ea49;">LAYER 5</span>
+          <span class="text-sm font-bold uppercase text-white">Executive Intelligence</span>
+          <span class="text-xs ml-auto hidden md:inline" style="color: #6b7280;">Revenue dashboards, board reports, forecasts</span>
+        </div>
+        <div class="text-center"><span class="text-xs" style="color: rgba(164,234,73,0.4);">&#9650;</span></div>
+
+        <!-- Layer 4 -->
+        <div class="rounded-lg px-4 py-3 flex items-center gap-3" style="background: rgba(164,234,73,0.09); border: 1px solid rgba(164,234,73,0.25);">
+          <span class="text-[11px] font-bold" style="color: #a4ea49;">LAYER 4</span>
+          <span class="text-sm font-bold uppercase text-white">Margin Protection</span>
+          <span class="text-xs ml-auto hidden md:inline" style="color: #6b7280;">Auto-alerts, churn prediction, margin floors</span>
+        </div>
+        <div class="text-center"><span class="text-xs" style="color: rgba(164,234,73,0.4);">&#9650;</span></div>
+
+        <!-- Layer 3 -->
+        <div class="rounded-lg px-4 py-3 flex items-center gap-3" style="background: rgba(164,234,73,0.07); border: 1px solid rgba(164,234,73,0.2);">
+          <span class="text-[11px] font-bold" style="color: #a4ea49;">LAYER 3</span>
+          <span class="text-sm font-bold uppercase text-white">Dynamic Pricing</span>
+          <span class="text-xs ml-auto hidden md:inline" style="color: #6b7280;">Hybrid models, simulation engine, A/B pricing</span>
+        </div>
+        <div class="text-center"><span class="text-xs" style="color: rgba(164,234,73,0.4);">&#9650;</span></div>
+
+        <!-- Layer 2 -->
+        <div class="rounded-lg px-4 py-3 flex items-center gap-3" style="background: rgba(164,234,73,0.05); border: 1px solid rgba(164,234,73,0.15);">
+          <span class="text-[11px] font-bold" style="color: #a4ea49;">LAYER 2</span>
+          <span class="text-sm font-bold uppercase text-white">Billing & Invoicing</span>
+          <span class="text-xs ml-auto hidden md:inline" style="color: #6b7280;">Auto-invoicing, multi-currency, tax compliance</span>
+        </div>
+        <div class="text-center"><span class="text-xs" style="color: rgba(164,234,73,0.4);">&#9650;</span></div>
+
+        <!-- Layer 1 (bottom, least vivid) -->
+        <div class="rounded-lg px-4 py-3 flex items-center gap-3" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.1);">
+          <span class="text-[11px] font-bold" style="color: #a4ea49;">LAYER 1</span>
+          <span class="text-sm font-bold uppercase text-white">Data Ingestion</span>
+          <span class="text-xs ml-auto hidden md:inline" style="color: #6b7280;">Event metering, token tracking, cost capture</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Without / With -->
+    <div class="fade-up grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto" style="transition-delay: 0.3s;">
+      <!-- Without -->
+      <div class="rounded-xl p-5" style="background: rgba(255,59,59,0.03); border: 1px solid rgba(255,59,59,0.15);">
+        <h4 class="text-sm font-bold uppercase mb-3" style="color: #ff3b3b;">Without UnitPay</h4>
+        <div class="space-y-1.5 text-sm">
+          <p style="color: rgba(255,255,255,0.7);">Layer 1: Orb</p>
+          <p style="color: rgba(255,255,255,0.7);">Layer 2: Stripe</p>
+          <p style="color: rgba(255,255,255,0.7);">Layer 3: Spreadsheets</p>
+          <p style="color: #ff3b3b;">Layer 4: ???</p>
+          <p style="color: #ff3b3b;">Layer 5: ???</p>
+        </div>
+      </div>
+      <!-- With -->
+      <div class="rounded-xl p-5" style="background: rgba(164,234,73,0.03); border: 1px solid rgba(164,234,73,0.15);">
+        <h4 class="text-sm font-bold uppercase mb-3" style="color: #a4ea49;">With UnitPay</h4>
+        <p class="text-base md:text-lg font-bold" style="color: #a4ea49;">All 5 layers.</p>
+        <p class="text-base font-medium text-white">One platform.</p>
+        <p class="text-base font-medium text-white">One price.</p>
+        <p class="text-lg md:text-xl font-extrabold mt-2" style="color: #a4ea49;">$299/month.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">12 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 13 — THE AI REVENUE ENGINE (NEW - 14 page)              -->
+<!-- ============================================================ -->
+<section id="slide-13" class="slide grain bg-dark-gradient flex flex-col items-center justify-center px-6 md:px-12 relative">
+  <div class="slide-content w-full max-w-4xl" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-6 md:mb-8">
+      <h2 class="text-2xl md:text-[38px] font-bold leading-tight text-white">We're Not Building a <span style="color: #6b7280; text-decoration: line-through;">Billing Tool</span>.</h2>
+      <h2 class="text-2xl md:text-[38px] font-bold leading-tight mt-1">We're Building the <span style="color: #a4ea49;">AI Revenue Engine</span>.</h2>
+    </div>
+
+    <!-- Category Card: Past / Present / Future -->
+    <div class="fade-up w-full rounded-2xl p-6 md:p-8 mb-6" style="background: #0a0a0a; border: 1px solid #1f1f1f; transition-delay: 0.15s;">
+
+      <!-- Past -->
+      <div class="mb-4">
+        <span class="text-[11px] font-bold uppercase tracking-wider" style="color: rgba(107,114,128,0.6);">PAST</span>
+        <p class="text-base mt-1" style="color: rgba(107,114,128,0.6);">Billing tools tracked subscriptions.</p>
+      </div>
+
+      <!-- Divider -->
+      <div class="w-full h-px mb-4" style="background: rgba(164,234,73,0.3);"></div>
+
+      <!-- Present -->
+      <div class="mb-4">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-white">PRESENT</span>
+        <p class="text-base mt-1 text-white">Billing tools struggle with usage-based.</p>
+      </div>
+
+      <!-- Divider -->
+      <div class="w-full h-px mb-4" style="background: rgba(164,234,73,0.3);"></div>
+
+      <!-- Future -->
+      <div>
+        <span class="text-[11px] font-bold uppercase tracking-wider" style="color: #a4ea49;">FUTURE</span>
+        <p class="text-base font-medium mt-1" style="color: #a4ea49;">Revenue engines manage the ENTIRE financial lifecycle of AI companies — from token to cash to margin to forecast to optimization.</p>
+        <p class="text-base font-medium mt-2" style="color: #a4ea49;">Autonomously.</p>
+      </div>
+    </div>
+
+    <!-- Roadmap Strip -->
+    <div class="fade-up w-full rounded-lg p-4 md:p-5 mb-6" style="background: #111111; border: 1px solid rgba(164,234,73,0.15); transition-delay: 0.3s;">
+      <div class="space-y-2.5">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold" style="color: #a4ea49;">NOW:</span>
+          <span class="text-sm" style="color: #a4ea49;">&#10003; Track &middot; Price &middot; Protect &middot; Report</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-white">Q3 2026:</span>
+          <span class="text-sm text-white">&#9675; Predict &middot; Suggest &middot; Optimize</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold" style="color: rgba(164,234,73,0.5);">2027:</span>
+          <span class="text-sm" style="color: rgba(164,234,73,0.5);">&#9675; Automate &middot; Self-heal &middot; Self-price</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing Statement -->
+    <p class="fade-up text-center text-base font-medium text-white" style="transition-delay: 0.45s;">The first company to own AI finance infrastructure <span style="color: #a4ea49;">wins the decade.</span></p>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">13 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 14 — CTA                                                -->
+<!-- ============================================================ -->
+<section id="slide-14" class="slide no-grain flex flex-col items-center justify-center px-6 md:px-12 relative" style="background: #0a0a0a;">
+  <!-- Center glow -->
+  <div class="absolute inset-0" style="background: radial-gradient(ellipse at center, rgba(164,234,73,0.05) 0%, transparent 60%);"></div>
+
+  <div class="slide-content w-full max-w-3xl flex flex-col items-center relative" style="z-index:2;">
+
+    <!-- Headline -->
+    <div class="fade-up text-center mb-5">
+      <h2 class="text-3xl md:text-[52px] font-extrabold leading-tight text-white">Your AI margins,</h2>
+      <h2 class="text-3xl md:text-[52px] font-extrabold leading-tight"><span style="color: #a4ea49;">visible</span> in <span style="color: #a4ea49;">10 minutes.</span></h2>
+    </div>
+
+    <!-- Era Callback -->
+    <div class="fade-up flex items-center justify-center gap-4 md:gap-6 mb-5" style="transition-delay: 0.1s;">
+      <div class="text-center">
+        <p class="text-base md:text-lg" style="color: #ff3b3b; text-decoration: line-through; opacity: 0.5;">$99/seat/month</p>
+        <span class="text-[11px]" style="color: #6b7280;">(old world)</span>
+      </div>
+      <span class="text-lg" style="color: #a4ea49;">→</span>
+      <div class="text-center">
+        <p class="font-mono text-sm md:text-base font-bold" style="color: #a4ea49;">$0.034/token (tracked)</p>
+        <span class="text-[11px]" style="color: #a4ea49;">(with UnitPay)</span>
+      </div>
+    </div>
+
+    <!-- Value Props -->
+    <div class="fade-up space-y-2.5 mb-6" style="transition-delay: 0.2s;">
+      <div class="flex items-center gap-3">
+        <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="#a4ea49" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-sm md:text-base text-white">Your domain, your pricing, your cost structure pre-loaded</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="#a4ea49" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-sm md:text-base text-white">See per-transaction margins from day one</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(164,234,73,0.1);">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="#a4ea49" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <span class="text-sm md:text-base text-white">No credit card. No sales call. Just <span style="color: #a4ea49;">clarity.</span></span>
+      </div>
+    </div>
+
+    <!-- CTA Button -->
+    <div class="fade-up mb-4" style="transition-delay: 0.3s;">
+      <a href="#" class="inline-block px-10 py-4 rounded-xl text-base md:text-lg font-bold pulse-glow" style="background: #a4ea49; color: #003024; box-shadow: 0 0 24px rgba(164,234,73,0.2);">
+        Start Free Trial →
+      </a>
+    </div>
+    <p class="fade-up text-sm mb-6" style="color: rgba(255,255,255,0.6); transition-delay: 0.35s;">Free tier. 10-minute setup. Token-level visibility.</p>
+
+    <!-- Contact -->
+    <div class="fade-up flex flex-col md:flex-row items-center gap-6 mb-6" style="transition-delay: 0.4s;">
+      <!-- QR Placeholder -->
+      <div class="w-24 h-24 rounded-lg flex items-center justify-center" style="background: #ffffff;">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <rect x="5" y="5" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="50" y="5" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="5" y="50" width="25" height="25" rx="2" fill="#0a0a0a"/>
+          <rect x="10" y="10" width="15" height="15" rx="1" fill="#ffffff"/>
+          <rect x="55" y="10" width="15" height="15" rx="1" fill="#ffffff"/>
+          <rect x="10" y="55" width="15" height="15" rx="1" fill="#ffffff"/>
+          <rect x="14" y="14" width="7" height="7" fill="#0a0a0a"/>
+          <rect x="59" y="14" width="7" height="7" fill="#0a0a0a"/>
+          <rect x="14" y="59" width="7" height="7" fill="#0a0a0a"/>
+          <rect x="35" y="5" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="35" y="15" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="35" y="35" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="50" y="40" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="60" y="50" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="50" y="60" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="70" y="60" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="40" y="50" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="40" y="70" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="55" y="70" width="5" height="5" fill="#0a0a0a"/>
+          <rect x="70" y="70" width="5" height="5" fill="#0a0a0a"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm font-medium text-white">useunitpay.com</p>
+        <p class="text-sm mt-0.5" style="color: #6b7280;">hello@useunitpay.com</p>
+      </div>
+    </div>
+
+    <p class="fade-up text-xs font-medium mb-6" style="color: #a4ea49; transition-delay: 0.45s;">Your AI revenue engine is live. Scan to walk through it.</p>
+
+    <!-- Dividing Line Callback -->
+    <div class="w-full relative flex items-center justify-center mb-5">
+      <div class="w-full h-px" style="background: rgba(164,234,73,0.3);"></div>
+      <span class="absolute text-[9px] uppercase tracking-widest px-3" style="color: #a4ea49; background: #0a0a0a;">AI ERA — YOUR ERA</span>
+    </div>
+
+    <!-- Logo + Tagline -->
+    <div class="fade-up text-center" style="transition-delay: 0.5s;">
+      <svg width="160" height="36" viewBox="0 0 160 36" fill="none">
+        <text x="0" y="28" font-family="Inter" font-weight="800" font-size="26" fill="#ffffff">UnitPay</text>
+      </svg>
+      <p class="text-sm font-medium mt-1" style="color: #a4ea49;">The AI Revenue Engine</p>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <span class="text-xs" style="color: #4b5563;">14 / 14</span>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><text x="0" y="15" font-family="Inter" font-weight="800" font-size="12" fill="#4b5563">U</text></svg>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SCRIPTS                                                       -->
+<!-- ============================================================ -->
+<script>
+(function() {
+  const TOTAL_SLIDES = 14;
+
+  // Build nav dots
+  const dotsContainer = document.getElementById('nav-dots');
+  for (let i = 1; i <= TOTAL_SLIDES; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot';
+    dot.dataset.slide = i;
+    dot.addEventListener('click', () => {
+      document.getElementById('slide-' + String(i).padStart(2, '0')).scrollIntoView({ behavior: 'smooth' });
+    });
+    dotsContainer.appendChild(dot);
+  }
+
+  // IntersectionObserver for fade-up animations
+  const fadeEls = document.querySelectorAll('.fade-up');
+  const fadeObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+  fadeEls.forEach(el => fadeObserver.observe(el));
+
+  // Active slide tracking (for nav dots + progress bar)
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.nav-dot');
+  const progressBar = document.getElementById('progress-bar');
+
+  const slideObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        const num = parseInt(id.replace('slide-', ''));
+        // Update dots
+        dots.forEach(d => d.classList.remove('active'));
+        const activeDot = dotsContainer.querySelector(`[data-slide="${num}"]`);
+        if (activeDot) activeDot.classList.add('active');
+        // Update progress bar
+        progressBar.style.width = ((num / TOTAL_SLIDES) * 100) + '%';
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => slideObserver.observe(s));
+})();
+</script>
+
+</body>
+</html>

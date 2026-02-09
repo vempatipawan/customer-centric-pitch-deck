@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnitPay — The $60K Stack Tax</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'brand-teal': '#003024',
+            'brand-lime': '#a4ea49',
+            'brand-mint': '#e1ead3',
+            'brand-black': '#0a0a0a',
+            'brand-white': '#ffffff',
+            'signal-red': '#ff3b3b',
+            'signal-amber': '#f5a623',
+            'slate': '#6b7280',
+            'card-dark': '#111111',
+            'card-border': '#1f1f1f',
+            'card-bg': '#1a1a1a',
+          },
+          fontFamily: {
+            'inter': ['Inter', 'system-ui', 'sans-serif'],
+            'mono': ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-snap-type: y mandatory; font-size: 14px; }
+    @media (min-width: 768px) { html { font-size: 15px; } }
+    @media (min-width: 1280px) { html { font-size: 16px; } }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #ffffff; overflow-x: hidden; }
+
+    .slide {
+      min-height: 100vh;
+      scroll-snap-align: start;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Grain overlay */
+    .grain::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .slide > * { position: relative; z-index: 2; }
+
+    /* Glow effects */
+    .lime-glow { text-shadow: 0 0 40px rgba(164, 234, 73, 0.2); }
+    .red-glow { text-shadow: 0 0 40px rgba(255, 59, 59, 0.3); }
+
+    /* Strikethrough styling */
+    .strike-red {
+      text-decoration: line-through;
+      text-decoration-color: #ff3b3b;
+      text-decoration-thickness: 2px;
+      color: #ff3b3b;
+      opacity: 0.7;
+    }
+    .strike-red-faded {
+      text-decoration: line-through;
+      text-decoration-color: #ff3b3b;
+      text-decoration-thickness: 2px;
+      color: #ff3b3b;
+      opacity: 0.4;
+    }
+
+    /* Receipt dotted leader */
+    .receipt-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .receipt-row .leader {
+      flex: 1;
+      border-bottom: 1px dotted #2a2a2a;
+      margin-bottom: 4px;
+    }
+
+    /* Receipt torn edge */
+    .receipt-tear {
+      position: relative;
+    }
+    .receipt-tear::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      width: 100%;
+      height: 20px;
+      background: linear-gradient(135deg, #111111 33.33%, transparent 33.33%) -12px 0,
+                  linear-gradient(225deg, #111111 33.33%, transparent 33.33%) -12px 0,
+                  linear-gradient(315deg, #111111 33.33%, transparent 33.33%),
+                  linear-gradient(45deg, #111111 33.33%, transparent 33.33%);
+      background-size: 24px 20px;
+      background-repeat: repeat-x;
+    }
+
+    /* Tool web connection lines */
+    .web-line {
+      stroke: #2a2a2a;
+      stroke-width: 1;
+      fill: none;
+    }
+    .web-line-dashed {
+      stroke: #2a2a2a;
+      stroke-width: 1;
+      stroke-dasharray: 4 4;
+      fill: none;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 4px 24px rgba(164, 234, 73, 0.3); }
+      50% { box-shadow: 0 8px 40px rgba(164, 234, 73, 0.5); }
+    }
+    @keyframes pulseRed {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+
+    .animate-on-scroll {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .animate-on-scroll.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .animate-delay-1 { transition-delay: 0.15s; }
+    .animate-delay-2 { transition-delay: 0.3s; }
+    .animate-delay-3 { transition-delay: 0.45s; }
+    .animate-delay-4 { transition-delay: 0.6s; }
+    .animate-delay-5 { transition-delay: 0.75s; }
+    .animate-delay-6 { transition-delay: 0.9s; }
+
+    /* Progress bar */
+    .progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: #a4ea49;
+      z-index: 100;
+      transition: width 0.3s ease;
+    }
+
+    /* Nav dots */
+    .nav-dots {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .nav-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1.5px solid #6b7280;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .nav-dot.active {
+      background: #a4ea49;
+      border-color: #a4ea49;
+      transform: scale(1.3);
+    }
+
+    /* Scrollbar hide */
+    ::-webkit-scrollbar { width: 0; }
+
+    /* Diagonal pattern */
+    .diagonal-pattern::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255,255,255,0.015) 10px,
+        rgba(255,255,255,0.015) 11px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Navigation Dots -->
+<nav class="nav-dots hidden md:flex" id="navDots">
+  <button class="nav-dot active" data-slide="0" aria-label="Slide 1"></button>
+  <button class="nav-dot" data-slide="1" aria-label="Slide 2"></button>
+  <button class="nav-dot" data-slide="2" aria-label="Slide 3"></button>
+  <button class="nav-dot" data-slide="3" aria-label="Slide 4"></button>
+  <button class="nav-dot" data-slide="4" aria-label="Slide 5"></button>
+  <button class="nav-dot" data-slide="5" aria-label="Slide 6"></button>
+  <button class="nav-dot" data-slide="6" aria-label="Slide 7"></button>
+</nav>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 1 — THE HOOK: The Receipt                               -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-12 md:py-16" id="slide-1"
+  style="background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);">
+
+  <!-- Logo -->
+  <div class="animate-on-scroll mb-6 md:mb-8">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-brand-lime flex items-center justify-center">
+        <div class="w-2 h-2 rounded-full bg-brand-teal"></div>
+      </div>
+      <span class="text-white font-inter font-bold text-lg md:text-xl tracking-tight">UnitPay</span>
+    </div>
+  </div>
+
+  <!-- The Receipt -->
+  <div class="w-full max-w-[480px] md:max-w-[560px] animate-on-scroll animate-delay-1">
+    <div class="receipt-tear bg-card-dark rounded-t-2xl border border-card-border p-6 md:p-10 relative" style="box-shadow: 0px 20px 60px rgba(0,0,0,0.6);">
+
+      <!-- Receipt Header -->
+      <div class="text-center mb-4 md:mb-6 pb-4 md:pb-5 border-b border-card-border">
+        <p class="font-inter text-[10px] md:text-xs font-bold uppercase tracking-[0.1em] text-white/60">Your Billing Stack</p>
+        <p class="font-inter text-xs md:text-sm text-white/60 mt-1">Annual Cost Summary</p>
+      </div>
+
+      <!-- Line Items -->
+      <div class="space-y-3 md:space-y-4">
+        <!-- Orb -->
+        <div class="receipt-row">
+          <span class="font-inter text-sm md:text-base text-white">Orb <span class="text-white/60 text-xs md:text-sm">(metering)</span></span>
+          <span class="leader"></span>
+          <span class="font-inter text-sm md:text-base font-bold text-signal-red">$18,000<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+        </div>
+        <!-- Stripe Billing -->
+        <div class="receipt-row">
+          <span class="font-inter text-sm md:text-base text-white">Stripe Billing</span>
+          <span class="leader"></span>
+          <span class="font-inter text-sm md:text-base font-bold text-signal-red">$12,000<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+        </div>
+        <!-- ChartMogul -->
+        <div class="receipt-row">
+          <span class="font-inter text-sm md:text-base text-white">ChartMogul <span class="text-white/60 text-xs md:text-sm">(analytics)</span></span>
+          <span class="leader"></span>
+          <span class="font-inter text-sm md:text-base font-bold text-signal-red">$6,000<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+        </div>
+        <!-- Avalara -->
+        <div class="receipt-row">
+          <span class="font-inter text-sm md:text-base text-white">Avalara <span class="text-white/60 text-xs md:text-sm">(tax compliance)</span></span>
+          <span class="leader"></span>
+          <span class="font-inter text-sm md:text-base font-bold text-signal-red">$4,800<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+        </div>
+        <!-- Spreadsheet hours -->
+        <div>
+          <div class="receipt-row">
+            <span class="font-inter text-sm md:text-base text-white">Spreadsheet hours <span class="text-white/60 text-xs md:text-sm">(48hr/mo)</span></span>
+            <span class="leader"></span>
+            <span class="font-inter text-sm md:text-base font-bold text-signal-red">$14,400<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+          </div>
+          <p class="font-inter text-[10px] md:text-[11px] text-white/40 mt-0.5 ml-1">48 hours/month x $25/hr x 12 months</p>
+        </div>
+        <!-- Integration maintenance -->
+        <div class="receipt-row">
+          <span class="font-inter text-sm md:text-base text-white">Integration maintenance</span>
+          <span class="leader"></span>
+          <span class="font-inter text-sm md:text-base font-bold text-signal-red">$8,400<span class="text-white/60 text-[10px] md:text-xs font-normal">/yr</span></span>
+        </div>
+      </div>
+
+      <!-- Total separator -->
+      <div class="mt-5 md:mt-6 mb-3 md:mb-4 border-t-2" style="border-color: rgba(255,59,59,0.4);"></div>
+
+      <!-- Total -->
+      <div class="flex justify-between items-baseline">
+        <span class="font-inter text-base md:text-lg font-bold text-white uppercase">Total</span>
+        <span class="font-inter text-xl md:text-2xl font-extrabold text-signal-red red-glow">$63,600<span class="text-white/60 text-xs md:text-sm font-normal">/yr</span></span>
+      </div>
+
+      <!-- Gut-punch footer -->
+      <p class="font-inter text-sm md:text-base italic text-white/50 text-center mt-5 md:mt-6">"And you still close books in 7 days."</p>
+
+      <!-- Easter egg receipt number -->
+      <p class="font-inter text-[9px] md:text-[10px] text-white/20 text-center mt-3">#INV-REALITY-CHECK</p>
+    </div>
+    <!-- Torn edge space -->
+    <div class="h-6"></div>
+  </div>
+
+  <!-- Headline Below Receipt -->
+  <div class="text-center max-w-3xl mt-6 md:mt-8 animate-on-scroll animate-delay-2">
+    <p class="font-inter font-bold text-xl md:text-[48px] md:leading-tight text-white">
+      You're paying <span class="font-extrabold text-signal-red red-glow">$60K/year</span> for billing tools
+    </p>
+    <p class="font-inter font-bold text-xl md:text-[48px] md:leading-tight text-white mt-1 md:mt-2">
+      that still need <span class="font-extrabold text-signal-amber">spreadsheets</span> to work.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">01 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 2 — THE PROBLEM: Built for subscriptions                -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col" id="slide-2">
+
+  <!-- Full-width headline -->
+  <div class="w-full text-center pt-12 md:pt-16 pb-6 md:pb-10 px-6 relative z-10" style="background: linear-gradient(180deg, #0a0a0a 0%, transparent 100%);">
+    <div class="animate-on-scroll">
+      <p class="font-inter font-bold text-xl md:text-[48px] md:leading-tight text-white/50">Built for subscriptions.</p>
+      <p class="font-inter font-extrabold text-xl md:text-[48px] md:leading-tight text-signal-red mt-1 md:mt-2">Broken for usage-based.</p>
+    </div>
+  </div>
+
+  <!-- 50/50 Split -->
+  <div class="flex-1 flex flex-col md:flex-row relative">
+
+    <!-- Left Panel — Legacy Assumptions -->
+    <div class="w-full md:w-1/2 px-6 md:px-12 lg:px-16 py-8 md:py-10 flex flex-col justify-center relative"
+      style="background: linear-gradient(160deg, #1a0a0a 0%, #150808 50%, #1a0a0a 100%);">
+      <!-- Red tint overlay -->
+      <div class="absolute inset-0 bg-signal-red/[0.03]"></div>
+
+      <div class="relative z-10">
+        <!-- Label Badge -->
+        <div class="animate-on-scroll">
+          <span class="inline-block px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-widest" style="background: rgba(255,59,59,0.15); color: #ff3b3b;">
+            What Legacy Tools Assume
+          </span>
+        </div>
+
+        <!-- List Items -->
+        <div class="mt-6 md:mt-8 space-y-4 md:space-y-6">
+          <div class="flex items-center gap-3 animate-on-scroll animate-delay-1">
+            <span class="text-signal-red text-lg md:text-xl font-bold flex-shrink-0">&#10005;</span>
+            <span class="font-inter text-base md:text-lg text-white/70">Flat monthly fees</span>
+          </div>
+          <div class="flex items-center gap-3 animate-on-scroll animate-delay-1">
+            <span class="text-signal-red text-lg md:text-xl font-bold flex-shrink-0">&#10005;</span>
+            <span class="font-inter text-base md:text-lg text-white/70">Predictable revenue</span>
+          </div>
+          <div class="flex items-center gap-3 animate-on-scroll animate-delay-2">
+            <span class="text-signal-red text-lg md:text-xl font-bold flex-shrink-0">&#10005;</span>
+            <span class="font-inter text-base md:text-lg text-white/70">Simple invoices</span>
+          </div>
+          <div class="flex items-center gap-3 animate-on-scroll animate-delay-2">
+            <span class="text-signal-red text-lg md:text-xl font-bold flex-shrink-0">&#10005;</span>
+            <span class="font-inter text-base md:text-lg text-white/70">One pricing model</span>
+          </div>
+          <div class="flex items-center gap-3 animate-on-scroll animate-delay-3">
+            <span class="text-signal-red text-lg md:text-xl font-bold flex-shrink-0">&#10005;</span>
+            <span class="font-inter text-base md:text-lg text-white/70">Static rate cards</span>
+          </div>
+        </div>
+
+        <!-- Square peg visual -->
+        <div class="mt-8 md:mt-12 flex flex-col items-center animate-on-scroll animate-delay-4">
+          <div class="w-20 h-20 md:w-28 md:h-28 border-2 border-signal-red/20 rounded-sm"></div>
+          <span class="font-inter text-xs text-white/40 mt-2">Square peg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-white/10 z-20"></div>
+
+    <!-- Right Panel — Your Reality -->
+    <div class="w-full md:w-1/2 px-6 md:px-12 lg:px-16 py-8 md:py-10 flex flex-col justify-center relative"
+      style="background: linear-gradient(160deg, #0a1a14 0%, #081510 50%, #0a1a14 100%);">
+      <!-- Green tint overlay -->
+      <div class="absolute inset-0 bg-brand-lime/[0.02]"></div>
+
+      <div class="relative z-10">
+        <!-- Label Badge -->
+        <div class="animate-on-scroll">
+          <span class="inline-block px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-widest" style="background: rgba(245,166,35,0.15); color: #f5a623;">
+            What Your Business Actually Does
+          </span>
+        </div>
+
+        <!-- List Items -->
+        <div class="mt-6 md:mt-8 space-y-5 md:space-y-7">
+          <div class="animate-on-scroll animate-delay-1">
+            <div class="flex items-start gap-3">
+              <span class="text-signal-amber text-xs mt-1.5 flex-shrink-0">&#9670;</span>
+              <div>
+                <span class="font-inter text-base md:text-lg text-white">Hybrid pricing</span>
+                <p class="font-inter text-xs md:text-sm text-white/50 mt-0.5">(base fee + usage + seats + credits)</p>
+              </div>
+            </div>
+          </div>
+          <div class="animate-on-scroll animate-delay-1">
+            <div class="flex items-start gap-3">
+              <span class="text-signal-amber text-xs mt-1.5 flex-shrink-0">&#9670;</span>
+              <div>
+                <span class="font-inter text-base md:text-lg text-white">Per-token billing</span>
+                <p class="font-inter text-xs md:text-sm text-white/50 mt-0.5">(costs change with every API call)</p>
+              </div>
+            </div>
+          </div>
+          <div class="animate-on-scroll animate-delay-2">
+            <div class="flex items-start gap-3">
+              <span class="text-signal-amber text-xs mt-1.5 flex-shrink-0">&#9670;</span>
+              <div>
+                <span class="font-inter text-base md:text-lg text-white">Mid-cycle upgrades</span>
+                <p class="font-inter text-xs md:text-sm text-white/50 mt-0.5">(proration nightmares)</p>
+              </div>
+            </div>
+          </div>
+          <div class="animate-on-scroll animate-delay-3">
+            <div class="flex items-start gap-3">
+              <span class="text-signal-amber text-xs mt-1.5 flex-shrink-0">&#9670;</span>
+              <div>
+                <span class="font-inter text-base md:text-lg text-white">Multi-dimensional metering</span>
+                <p class="font-inter text-xs md:text-sm text-white/50 mt-0.5">(tokens + compute + storage + bandwidth)</p>
+              </div>
+            </div>
+          </div>
+          <div class="animate-on-scroll animate-delay-3">
+            <div class="flex items-start gap-3">
+              <span class="text-signal-amber text-xs mt-1.5 flex-shrink-0">&#9670;</span>
+              <div>
+                <span class="font-inter text-base md:text-lg text-white">Dynamic pricing</span>
+                <p class="font-inter text-xs md:text-sm text-white/50 mt-0.5">(varies by customer, segment, and market)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Round hole visual — organic blob -->
+        <div class="mt-8 md:mt-12 flex flex-col items-center animate-on-scroll animate-delay-4">
+          <svg width="120" height="120" viewBox="0 0 120 120" class="md:w-28 md:h-28 w-20 h-20">
+            <path d="M60 10 C85 8, 108 25, 110 50 C112 72, 95 95, 75 105 C55 115, 25 108, 15 85 C5 62, 15 30, 35 18 C45 12, 52 11, 60 10Z"
+              fill="none" stroke="#f5a623" stroke-width="2" opacity="0.2"/>
+          </svg>
+          <span class="font-inter text-xs text-white/40 mt-2">Round hole</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subtext -->
+  <div class="w-full text-center py-6 md:py-8 px-6" style="background: linear-gradient(0deg, #0a0a0a 0%, transparent 100%);">
+    <p class="font-inter text-sm md:text-lg text-white/50 animate-on-scroll">
+      Bolting usage onto subscription tools is duct tape, not architecture.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">02 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 3 — THE GAP: Tool Web Diagram                           -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-12 md:py-16" id="slide-3"
+  style="background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);">
+
+  <!-- Headline -->
+  <div class="text-center max-w-4xl animate-on-scroll">
+    <p class="font-inter font-bold text-xl md:text-[48px] md:leading-tight text-white">
+      The more tools you have,
+    </p>
+    <p class="font-inter font-bold text-xl md:text-[48px] md:leading-tight text-white mt-1 md:mt-2">
+      the <span class="text-signal-red font-extrabold red-glow">less</span> you actually know.
+    </p>
+  </div>
+
+  <!-- Tool Web Diagram -->
+  <div class="mt-10 md:mt-14 w-full max-w-4xl animate-on-scroll animate-delay-1" style="animation: breathe 6s ease-in-out infinite;">
+    <svg viewBox="0 0 900 400" class="w-full" xmlns="http://www.w3.org/2000/svg">
+      <!-- Connection Lines (intentionally messy/overlapping) -->
+      <!-- Stripe to Orb -->
+      <path d="M200,80 C350,40 550,40 700,80" class="web-line" opacity="0.5"/>
+      <text x="440" y="50" fill="#6b7280" font-size="9" font-family="Inter">webhook</text>
+      <!-- Stripe to Avalara -->
+      <path d="M160,100 C140,180 140,220 160,300" class="web-line-dashed" opacity="0.4"/>
+      <!-- Stripe to QuickBooks -->
+      <path d="M180,105 C160,200 170,280 200,320" class="web-line" opacity="0.5"/>
+      <text x="130" y="220" fill="#6b7280" font-size="9" font-family="Inter">csv export</text>
+      <!-- Orb to ChartMogul -->
+      <path d="M730,105 C740,180 740,220 730,300" class="web-line" opacity="0.5"/>
+      <!-- Orb to Spreadsheets -->
+      <path d="M720,100 C750,200 740,280 700,320" class="web-line-dashed" opacity="0.4"/>
+      <text x="750" y="220" fill="#6b7280" font-size="9" font-family="Inter">manual sync</text>
+      <!-- Avalara to QuickBooks -->
+      <path d="M190,300 C250,350 350,350 200,340" class="web-line" opacity="0.4"/>
+      <!-- ChartMogul to Spreadsheets -->
+      <path d="M710,300 C650,350 600,350 700,340" class="web-line-dashed" opacity="0.4"/>
+      <!-- Stripe to center void -->
+      <path d="M210,95 C300,140 340,160 390,180" class="web-line" opacity="0.35"/>
+      <!-- Orb to center void -->
+      <path d="M690,95 C600,140 560,160 510,180" class="web-line" opacity="0.35"/>
+      <!-- Avalara to center void -->
+      <path d="M190,290 C280,260 340,230 400,210" class="web-line-dashed" opacity="0.3"/>
+      <!-- QuickBooks to center void -->
+      <path d="M240,330 C320,290 380,240 420,220" class="web-line" opacity="0.3"/>
+      <!-- ChartMogul to center void -->
+      <path d="M710,290 C620,260 560,230 500,210" class="web-line-dashed" opacity="0.3"/>
+      <!-- Spreadsheets to center void -->
+      <path d="M660,330 C580,290 520,240 480,220" class="web-line" opacity="0.3"/>
+      <!-- Cross connections for extra chaos -->
+      <path d="M200,90 C350,200 500,250 700,310" class="web-line-dashed" opacity="0.2"/>
+      <path d="M700,90 C550,200 400,250 200,310" class="web-line-dashed" opacity="0.2"/>
+
+      <!-- Tool Nodes -->
+      <!-- Stripe (top-left) -->
+      <rect x="110" y="60" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="180" y="89" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">Stripe</text>
+
+      <!-- Orb (top-right) -->
+      <rect x="630" y="60" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="700" y="89" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">Orb</text>
+
+      <!-- Avalara (middle-left) -->
+      <rect x="80" y="280" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="150" y="309" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">Avalara</text>
+
+      <!-- QuickBooks (bottom-left) -->
+      <rect x="120" y="320" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="190" y="349" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">QuickBooks</text>
+
+      <!-- ChartMogul (middle-right) -->
+      <rect x="670" y="280" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="740" y="309" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">ChartMogul</text>
+
+      <!-- Spreadsheets (bottom-right) — red border pain point -->
+      <rect x="630" y="320" width="140" height="48" rx="8" fill="#1a1a1a" stroke="#ff3b3b" stroke-width="1.5"/>
+      <text x="700" y="349" fill="#ffffff" font-size="14" font-family="Inter" text-anchor="middle" font-weight="500">Spreadsheets</text>
+
+      <!-- CENTER VOID — The hollow center -->
+      <rect x="350" y="170" width="200" height="80" rx="12" fill="rgba(255,59,59,0.03)" stroke="#ff3b3b" stroke-width="2" stroke-dasharray="6 4" style="animation: pulseRed 3s ease-in-out infinite;"/>
+      <text x="450" y="205" fill="#ff3b3b" font-size="32" font-family="Inter" text-anchor="middle" font-weight="800">?</text>
+      <text x="450" y="235" fill="#ff3b3b" font-size="11" font-family="Inter" text-anchor="middle" font-weight="700" letter-spacing="0.1em">MARGIN VISIBILITY</text>
+    </svg>
+  </div>
+
+  <!-- Quote Box -->
+  <div class="mt-8 md:mt-10 w-full max-w-3xl animate-on-scroll animate-delay-2">
+    <div class="bg-card-dark border border-card-border rounded-r-xl rounded-l-none px-5 md:px-8 py-5 md:py-6" style="border-left: 4px solid #ff3b3b;">
+      <p class="font-inter text-base md:text-xl text-white/90">
+        When your billing system says <span class="font-bold text-white">$5,432</span> and your accounting says <span class="font-bold text-white">$5,500</span> &mdash; who's right?
+      </p>
+      <p class="font-inter text-sm md:text-base italic text-white/50 mt-2">
+        You spend <span class="text-signal-red font-medium not-italic">3 hours</span> finding out.
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">03 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 4 — THE SOLUTION: Comparison Split                      -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col" id="slide-4">
+
+  <!-- Full-width headline -->
+  <div class="w-full text-center pt-12 md:pt-16 pb-6 md:pb-8 px-6 relative z-10" style="background: linear-gradient(180deg, #0a0a0a 0%, transparent 100%);">
+    <div class="animate-on-scroll">
+      <p class="font-inter font-extrabold text-xl md:text-[48px] md:leading-tight text-white">
+        One platform. <span class="text-brand-lime lime-glow">1/3rd</span> the cost. <span class="text-brand-lime lime-glow">10x</span> the clarity.
+      </p>
+    </div>
+  </div>
+
+  <!-- 50/50 Split -->
+  <div class="flex-1 flex flex-col md:flex-row relative">
+
+    <!-- Left Panel — The Old Way -->
+    <div class="w-full md:w-1/2 px-6 md:px-12 lg:px-16 py-8 md:py-10 flex flex-col justify-center relative"
+      style="background: linear-gradient(160deg, #1a0a0a 0%, #150808 50%, #1a0a0a 100%);">
+      <div class="absolute inset-0 bg-signal-red/[0.03]"></div>
+
+      <div class="relative z-10">
+        <!-- Label -->
+        <div class="animate-on-scroll">
+          <span class="inline-block px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-widest" style="background: rgba(255,59,59,0.15); color: #ff3b3b;">
+            The Old Way
+          </span>
+        </div>
+
+        <!-- Strikethrough Cost Stack -->
+        <div class="mt-6 md:mt-10 space-y-6 md:space-y-8">
+          <div class="animate-on-scroll animate-delay-1" style="opacity: 0.6;">
+            <p class="font-inter text-lg md:text-2xl font-bold strike-red">$5,000/month</p>
+            <p class="font-inter text-xs md:text-sm text-white/40 mt-1">across 5-7 tools</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-2" style="opacity: 0.6;">
+            <p class="font-inter text-lg md:text-2xl font-bold strike-red">5-7 billing tools</p>
+            <p class="font-inter text-xs md:text-sm text-white/40 mt-1">none talk to each other</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-3" style="opacity: 0.6;">
+            <p class="font-inter text-lg md:text-2xl font-bold strike-red">7-day book close</p>
+            <p class="font-inter text-xs md:text-sm text-white/40 mt-1">manual reconciliation</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-4" style="opacity: 0.6;">
+            <p class="font-inter text-lg md:text-2xl font-bold strike-red">Margin guessing</p>
+            <p class="font-inter text-xs md:text-sm text-white/40 mt-1">no per-customer visibility</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Transformation Arrow -->
+    <div class="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
+      <div class="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 border-brand-lime" style="background: #003024; box-shadow: 0px 4px 20px rgba(164,234,73,0.3);">
+        <svg class="w-8 h-8 md:w-10 md:h-10 text-brand-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
+        </svg>
+      </div>
+    </div>
+    <!-- Mobile arrow -->
+    <div class="flex md:hidden justify-center py-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center border-2 border-brand-lime" style="background: #003024;">
+        <svg class="w-6 h-6 text-brand-lime rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Right Panel — The UnitPay Way -->
+    <div class="w-full md:w-1/2 px-6 md:px-12 lg:px-16 py-8 md:py-10 flex flex-col justify-center relative"
+      style="background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);">
+
+      <div class="relative z-10">
+        <!-- Label -->
+        <div class="animate-on-scroll">
+          <span class="inline-block px-3 py-1.5 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-widest bg-brand-lime text-brand-teal">
+            The UnitPay Way
+          </span>
+        </div>
+
+        <!-- Value Stack -->
+        <div class="mt-6 md:mt-10 space-y-6 md:space-y-8">
+          <div class="animate-on-scroll animate-delay-1">
+            <p class="font-inter text-2xl md:text-[32px] font-extrabold text-brand-lime lime-glow">$299/month</p>
+            <p class="font-inter text-xs md:text-sm text-brand-mint/70 mt-1">all-inclusive</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-2">
+            <p class="font-inter text-lg md:text-2xl font-bold text-white">1 platform</p>
+            <p class="font-inter text-xs md:text-sm text-brand-mint/70 mt-1">replaces your entire stack</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-3">
+            <p class="font-inter text-lg md:text-2xl font-bold text-white">1-day book close</p>
+            <p class="font-inter text-xs md:text-sm text-brand-mint/70 mt-1">automated reconciliation</p>
+          </div>
+          <div class="animate-on-scroll animate-delay-4">
+            <p class="font-inter text-lg md:text-2xl font-bold text-white">Real-time margins</p>
+            <p class="font-inter text-xs md:text-sm text-brand-mint/70 mt-1">per-customer, per-feature, per-API-call</p>
+          </div>
+        </div>
+
+        <!-- Mini Dashboard Preview -->
+        <div class="mt-8 md:mt-10 animate-on-scroll animate-delay-5">
+          <div class="bg-card-dark rounded-xl border border-brand-lime/20 p-4 md:p-5 max-w-sm">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-inter text-[10px] md:text-xs text-white/60">Real-time Margins</span>
+              <span class="flex items-center gap-1 text-[10px] md:text-xs text-brand-lime">
+                <span class="w-1.5 h-1.5 rounded-full bg-brand-lime animate-pulse"></span>
+                LIVE
+              </span>
+            </div>
+            <p class="font-inter text-xl md:text-2xl font-extrabold text-brand-lime">+58.7%</p>
+            <p class="font-inter text-[10px] md:text-xs text-white/50 mt-1">average margin across 3 customers</p>
+            <!-- Mini bars -->
+            <div class="mt-3 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="font-inter text-[10px] text-white/60 w-14">Acme AI</span>
+                <div class="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div class="h-full bg-brand-lime rounded-full" style="width: 65%;"></div>
+                </div>
+                <span class="font-inter text-[10px] text-brand-lime">+65%</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-inter text-[10px] text-white/60 w-14">BotCorp</span>
+                <div class="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div class="h-full bg-brand-lime rounded-full" style="width: 62%;"></div>
+                </div>
+                <span class="font-inter text-[10px] text-brand-lime">+62%</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-inter text-[10px] text-white/60 w-14">DataFlow</span>
+                <div class="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div class="h-full bg-signal-amber rounded-full" style="width: 20%;"></div>
+                </div>
+                <span class="font-inter text-[10px] text-signal-amber">+20%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">04 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 5 — HOW IT WORKS: Three Steps                           -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-16 lg:px-20 py-12 md:py-16" id="slide-5"
+  style="background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);">
+
+  <!-- Headline -->
+  <div class="text-center max-w-4xl animate-on-scroll">
+    <p class="font-inter font-extrabold text-2xl md:text-[56px] md:leading-tight text-white">
+      Live in <span class="text-brand-lime lime-glow">10 minutes.</span>
+      Not <span class="strike-red" style="opacity: 0.6;">10 weeks.</span>
+    </p>
+  </div>
+
+  <!-- Three Step Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mt-10 md:mt-14 w-full max-w-6xl">
+
+    <!-- Step 1 — Connect -->
+    <div class="rounded-2xl p-6 md:p-8 animate-on-scroll animate-delay-1" style="background: #002a1f; border: 1px solid rgba(164,234,73,0.1);">
+      <!-- Step Number -->
+      <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-lime flex items-center justify-center mb-5 md:mb-6" style="box-shadow: 0px 0px 20px rgba(164,234,73,0.2);">
+        <span class="font-inter text-sm md:text-lg font-extrabold text-brand-teal">01</span>
+      </div>
+
+      <h3 class="font-inter text-xl md:text-[28px] font-extrabold text-white">Connect</h3>
+      <p class="font-inter text-sm md:text-base text-brand-mint/70 mt-2">10-line SDK plugs into your existing stack.</p>
+
+      <!-- Code Snippet -->
+      <div class="mt-5 md:mt-6 rounded-lg p-3 md:p-4 border border-card-border overflow-x-auto" style="background: #0d1117;">
+        <pre class="font-mono text-[11px] md:text-[13px] leading-relaxed"><code><span style="color: #ff7b72;">import</span> { UnitPay } <span style="color: #ff7b72;">from</span>
+  <span style="color: #a4ea49;">'@unitpay/sdk'</span>;
+
+<span style="color: #ff7b72;">const</span> up = <span style="color: #ff7b72;">new</span> UnitPay({
+  <span style="color: #79c0ff;">apiKey</span>: <span style="color: #a4ea49;">'up_live_...'</span>
+});
+
+up.track(<span style="color: #a4ea49;">'api_call'</span>, {
+  <span style="color: #79c0ff;">customer</span>: <span style="color: #a4ea49;">'acme_ai'</span>,
+  <span style="color: #79c0ff;">tokens</span>: <span style="color: #f5a623;">842</span>
+});</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 2 — See -->
+    <div class="rounded-2xl p-6 md:p-8 animate-on-scroll animate-delay-2" style="background: #002a1f; border: 1px solid rgba(164,234,73,0.1);">
+      <!-- Step Number -->
+      <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-lime flex items-center justify-center mb-5 md:mb-6" style="box-shadow: 0px 0px 20px rgba(164,234,73,0.2);">
+        <span class="font-inter text-sm md:text-lg font-extrabold text-brand-teal">02</span>
+      </div>
+
+      <h3 class="font-inter text-xl md:text-[28px] font-extrabold text-white">See</h3>
+      <p class="font-inter text-sm md:text-base text-brand-mint/70 mt-2">Real-time margin dashboard. Per-customer cost attribution.</p>
+
+      <!-- Mini Dashboard -->
+      <div class="mt-5 md:mt-6 rounded-lg p-3 md:p-4 border border-card-border" style="background: #111111;">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-inter text-[10px] md:text-xs text-white/60">Avg Margin</span>
+          <span class="font-inter text-base md:text-lg font-extrabold text-brand-lime">+58.7%</span>
+        </div>
+        <!-- Progress bar -->
+        <div class="w-full h-3 bg-white/5 rounded-full overflow-hidden mb-4">
+          <div class="h-full bg-brand-lime rounded-full" style="width: 58.7%;"></div>
+        </div>
+        <!-- Customer rows -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-inter text-[10px] md:text-xs text-white/70">Acme AI</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 md:w-20 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-brand-lime rounded-full" style="width: 65%;"></div>
+              </div>
+              <span class="font-inter text-[10px] md:text-xs font-bold text-brand-lime">+65%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="font-inter text-[10px] md:text-xs text-white/70">BotCorp</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 md:w-20 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-brand-lime rounded-full" style="width: 62%;"></div>
+              </div>
+              <span class="font-inter text-[10px] md:text-xs font-bold text-brand-lime">+62%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="font-inter text-[10px] md:text-xs text-white/70">DataFlow</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 md:w-20 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-signal-amber rounded-full" style="width: 20%;"></div>
+              </div>
+              <span class="font-inter text-[10px] md:text-xs font-bold text-signal-amber">+20%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 — Scale -->
+    <div class="rounded-2xl p-6 md:p-8 animate-on-scroll animate-delay-3" style="background: #002a1f; border: 1px solid rgba(164,234,73,0.1);">
+      <!-- Step Number -->
+      <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-lime flex items-center justify-center mb-5 md:mb-6" style="box-shadow: 0px 0px 20px rgba(164,234,73,0.2);">
+        <span class="font-inter text-sm md:text-lg font-extrabold text-brand-teal">03</span>
+      </div>
+
+      <h3 class="font-inter text-xl md:text-[28px] font-extrabold text-white">Scale</h3>
+      <p class="font-inter text-sm md:text-base text-brand-mint/70 mt-2">Dynamic pricing, automated billing, global tax compliance.</p>
+
+      <!-- Pricing Model UI -->
+      <div class="mt-5 md:mt-6 rounded-lg p-3 md:p-4 border border-card-border" style="background: #111111;">
+        <p class="font-inter text-xs md:text-sm font-medium text-white/70 mb-3">Pricing Model</p>
+
+        <div class="space-y-2.5">
+          <!-- Radio: Usage-based -->
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <div class="w-4 h-4 rounded-full border-2 border-white/20 flex items-center justify-center flex-shrink-0"></div>
+            <span class="font-inter text-xs md:text-sm text-white/60">Usage-based</span>
+          </label>
+          <!-- Radio: Hybrid (selected) -->
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <div class="w-4 h-4 rounded-full border-2 border-brand-lime flex items-center justify-center flex-shrink-0">
+              <div class="w-2 h-2 rounded-full bg-brand-lime"></div>
+            </div>
+            <span class="font-inter text-xs md:text-sm text-white font-medium">Hybrid</span>
+          </label>
+          <!-- Radio: Subscription -->
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <div class="w-4 h-4 rounded-full border-2 border-white/20 flex items-center justify-center flex-shrink-0"></div>
+            <span class="font-inter text-xs md:text-sm text-white/60">Subscription</span>
+          </label>
+        </div>
+
+        <div class="border-t border-card-border mt-3 pt-3">
+          <p class="font-inter text-[10px] md:text-xs text-white/70">Base: $99/mo + $0.01/API call</p>
+          <div class="mt-2 space-y-1">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3 h-3 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+              </svg>
+              <span class="font-inter text-[10px] md:text-xs text-white/60">Auto-invoicing enabled</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3 h-3 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+              </svg>
+              <span class="font-inter text-[10px] md:text-xs text-white/60">Tax compliance: 135 countries</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compatibility Note -->
+  <div class="mt-8 md:mt-12 flex flex-col md:flex-row items-center gap-3 md:gap-4 animate-on-scroll animate-delay-4">
+    <div class="flex items-center gap-3">
+      <!-- Stripe badge -->
+      <span class="inline-block px-3 py-1.5 rounded-md text-xs md:text-sm font-bold" style="background: rgba(99,91,255,0.15); color: #635bff;">Stripe</span>
+      <span class="font-inter text-lg md:text-2xl font-bold text-white/40">+</span>
+      <!-- UnitPay badge -->
+      <span class="inline-block px-3 py-1.5 rounded-md text-xs md:text-sm font-bold" style="background: rgba(164,234,73,0.15); color: #a4ea49;">UnitPay</span>
+    </div>
+    <p class="font-inter text-sm md:text-lg font-medium text-brand-mint/80">Works alongside Stripe. No rip-and-replace.</p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">05 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 6 — TRACTION: Metrics Grid                              -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-12 md:py-16" id="slide-6"
+  style="background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);">
+
+  <!-- Headline -->
+  <div class="text-center max-w-4xl animate-on-scroll">
+    <h2 class="font-inter font-bold text-2xl md:text-[48px] md:leading-tight text-white">
+      Companies are <span class="text-brand-lime font-extrabold lime-glow">consolidating</span> to UnitPay.
+    </h2>
+  </div>
+
+  <!-- 2x2 Metric Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-10 md:mt-14 w-full max-w-4xl">
+
+    <!-- Card 1 — Companies Live -->
+    <div class="bg-card-dark rounded-2xl border border-card-border p-6 md:p-8 animate-on-scroll animate-delay-1">
+      <p class="font-inter font-extrabold text-5xl md:text-[72px] text-brand-lime leading-none lime-glow">3</p>
+      <p class="font-inter text-base md:text-lg font-medium text-white mt-2">companies live</p>
+      <div class="border-t border-card-border mt-4 pt-4">
+        <p class="font-inter text-xs md:text-sm text-white/50">tracking real-time margins today</p>
+      </div>
+    </div>
+
+    <!-- Card 2 — Waitlist -->
+    <div class="bg-card-dark rounded-2xl border border-card-border p-6 md:p-8 animate-on-scroll animate-delay-2">
+      <p class="font-inter font-extrabold text-5xl md:text-[72px] text-brand-lime leading-none lime-glow">10</p>
+      <p class="font-inter text-base md:text-lg font-medium text-white mt-2">on the waitlist</p>
+      <div class="border-t border-card-border mt-4 pt-4">
+        <p class="font-inter text-xs md:text-sm text-white/50">migrating from multi-tool stacks</p>
+      </div>
+    </div>
+
+    <!-- Card 3 — Raised -->
+    <div class="bg-card-dark rounded-2xl border border-card-border p-6 md:p-8 animate-on-scroll animate-delay-3">
+      <p class="font-inter font-extrabold text-brand-lime leading-none lime-glow">
+        <span class="text-3xl md:text-5xl">$</span><span class="text-5xl md:text-[72px]">200K</span>
+      </p>
+      <p class="font-inter text-base md:text-lg font-medium text-white mt-2">raised</p>
+      <div class="border-t border-card-border mt-4 pt-4">
+        <p class="font-inter text-xs md:text-sm text-white/50">building the all-in-one platform that doesn't exist yet</p>
+      </div>
+    </div>
+
+    <!-- Card 4 — Setup Speed -->
+    <div class="bg-card-dark rounded-2xl border border-card-border p-6 md:p-8 animate-on-scroll animate-delay-4">
+      <p class="font-inter font-extrabold text-brand-lime leading-none lime-glow">
+        <span class="text-3xl md:text-5xl">&lt;</span><span class="text-5xl md:text-[72px]">10</span>
+      </p>
+      <p class="font-inter text-base md:text-lg font-medium text-white mt-2">minutes to go live</p>
+      <div class="border-t border-card-border mt-4 pt-4">
+        <p class="font-inter text-xs md:text-sm text-white/50">vs. <span class="text-signal-red">weeks</span> with legacy platforms</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quote -->
+  <div class="mt-10 md:mt-14 text-center animate-on-scroll animate-delay-5">
+    <p class="font-inter text-lg md:text-2xl italic text-white">&ldquo;We replaced 4 tools in one afternoon.&rdquo;</p>
+    <p class="font-inter text-sm md:text-base text-white/50 mt-2">&mdash; Early Adopter</p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">06 / 07</div>
+  <div class="absolute bottom-5 md:bottom-6 right-6 md:right-20">
+    <div class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+      <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- SLIDE 7 — THE CTA: Receipt Callback                           -->
+<!-- ============================================================ -->
+<section class="slide grain flex flex-col items-center justify-center px-4 md:px-20 py-12 md:py-16" id="slide-7"
+  style="background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%); background-image: radial-gradient(ellipse at center, rgba(164,234,73,0.05) 0%, transparent 55%);">
+
+  <!-- Headline -->
+  <div class="text-center max-w-3xl animate-on-scroll">
+    <h2 class="font-inter font-extrabold text-2xl md:text-[56px] md:leading-[1.1] tracking-tight text-white">
+      See what <span class="text-signal-red red-glow">$60K/year</span> was<br>
+      <span class="text-signal-red">hiding</span> from you.
+    </h2>
+  </div>
+
+  <!-- Receipt Callback — struck through with replacement -->
+  <div class="w-full max-w-[420px] md:max-w-[480px] mt-6 md:mt-8 animate-on-scroll animate-delay-1">
+    <div class="receipt-tear bg-card-dark rounded-t-2xl border border-card-border p-5 md:p-8 relative" style="box-shadow: 0px 12px 40px rgba(0,0,0,0.4);">
+
+      <!-- Struck-through items -->
+      <div class="space-y-2 md:space-y-2.5">
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">Orb (metering)</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$18,000</span>
+        </div>
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">Stripe Billing</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$12,000</span>
+        </div>
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">ChartMogul</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$6,000</span>
+        </div>
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">Avalara</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$4,800</span>
+        </div>
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">Spreadsheet hours</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$14,400</span>
+        </div>
+        <div class="receipt-row strike-red-faded">
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">Integration maintenance</span>
+          <span class="leader" style="border-color: rgba(255,59,59,0.15);"></span>
+          <span class="font-inter text-xs md:text-[15px]" style="text-decoration: line-through; text-decoration-color: #ff3b3b; text-decoration-thickness: 2px;">$8,400</span>
+        </div>
+      </div>
+
+      <!-- Green separator -->
+      <div class="my-4 md:my-5 border-t-2 border-brand-lime"></div>
+
+      <!-- UnitPay replacement line -->
+      <div class="flex justify-between items-baseline">
+        <span class="font-inter text-base md:text-lg font-bold text-brand-lime">UnitPay</span>
+        <div class="text-right">
+          <span class="font-inter text-base md:text-lg font-bold text-brand-lime">$3,588/year</span>
+          <span class="font-inter text-xs md:text-sm text-white/50 ml-1">($299/month)</span>
+        </div>
+      </div>
+
+      <!-- Savings Line -->
+      <div class="mt-4 md:mt-5 text-center">
+        <p class="font-inter text-lg md:text-xl font-extrabold text-brand-lime lime-glow" style="text-shadow: 0px 0px 30px rgba(164,234,73,0.15);">
+          You save: $60,012/year
+        </p>
+      </div>
+    </div>
+    <!-- Torn edge space -->
+    <div class="h-6"></div>
+  </div>
+
+  <!-- CTA Button -->
+  <div class="mt-4 md:mt-6 animate-on-scroll animate-delay-2">
+    <a href="#" class="inline-block bg-brand-lime text-brand-teal font-inter font-bold text-base md:text-lg px-10 md:px-12 py-3.5 md:py-4 rounded-xl hover:brightness-110 transition-all" style="animation: pulseGlow 2.5s ease-in-out infinite;">
+      Start Free Trial &rarr;
+    </a>
+  </div>
+
+  <!-- Sub CTA text -->
+  <p class="text-white/50 text-xs md:text-base mt-4 text-center animate-on-scroll animate-delay-3">
+    Free tier. No credit card. Your demo pre-built.
+  </p>
+
+  <!-- QR + Contact -->
+  <div class="flex flex-col md:flex-row items-center gap-5 md:gap-8 mt-8 md:mt-10 animate-on-scroll animate-delay-4">
+    <!-- QR Placeholder -->
+    <div class="w-24 h-24 md:w-28 md:h-28 bg-white rounded-xl flex items-center justify-center p-2.5">
+      <div class="w-full h-full border-2 border-brand-teal rounded-lg flex items-center justify-center">
+        <span class="text-brand-teal text-[9px] md:text-[10px] font-mono text-center leading-tight">QR CODE<br>useunitpay.com</span>
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="text-center md:text-left">
+      <p class="font-inter text-sm md:text-base font-medium text-brand-lime">useunitpay.com</p>
+      <p class="font-inter text-xs md:text-sm text-white/50 mt-1">hello@useunitpay.com</p>
+    </div>
+  </div>
+
+  <!-- QR Hook Copy -->
+  <p class="font-inter text-xs md:text-sm font-medium text-brand-lime mt-2 text-center animate-on-scroll animate-delay-4">
+    Your $60K stack tax &mdash; itemized. Scan if you dare.
+  </p>
+
+  <!-- Logo -->
+  <div class="mt-8 md:mt-10 flex items-center gap-2 animate-on-scroll animate-delay-5">
+    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-brand-lime flex items-center justify-center">
+      <div class="w-2 h-2 rounded-full bg-brand-teal"></div>
+    </div>
+    <span class="text-white font-inter font-bold text-lg md:text-xl tracking-tight">UnitPay</span>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-5 md:bottom-6 left-6 md:left-20 text-white/40 text-xs font-inter font-medium">07 / 07</div>
+</section>
+
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT — Scroll Animations, Nav Dots, Progress Bar        -->
+<!-- ============================================================ -->
+<script>
+  // Intersection Observer for scroll-triggered fade-in-up animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+
+  // Progress bar at bottom
+  const progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = (scrollTop / docHeight) * 100;
+    progressBar.style.width = progress + '%';
+  });
+
+  // Navigation dots
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.nav-dot');
+
+  const slideObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const index = Array.from(slides).indexOf(entry.target);
+        dots.forEach((dot, i) => {
+          dot.classList.toggle('active', i === index);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(slide => slideObserver.observe(slide));
+
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const index = parseInt(dot.dataset.slide);
+      slides[index].scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>
