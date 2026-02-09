@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-snap-y">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UnitPay — The Pricing Migration</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        brand: {
+          teal: '#003024',
+          lime: '#a4ea49',
+          mint: '#e1ead3',
+          black: '#0a0a0a',
+          danger: '#ff3b3b',
+          amber: '#f5a623',
+          slate: '#6b7280',
+          card: '#111111',
+          border: '#1f1f1f',
+          blue: '#3b82f6',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  /* ── Base ── */
+  html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    font-size: 14px;
+  }
+  @media (min-width: 768px) { html { font-size: 15px; } }
+  @media (min-width: 1280px) { html { font-size: 16px; } }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0a0a;
+    color: #ffffff;
+    overflow-x: hidden;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 0; }
+  html { scrollbar-width: none; }
+
+  /* ── Scroll Snap Sections ── */
+  .slide {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    overflow: hidden;
+  }
+  @media (min-width: 768px) { .slide { padding: 4rem 3rem; } }
+  @media (min-width: 1280px) { .slide { padding: 5rem 4rem; } }
+
+  /* ── Grain Overlay ── */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  .slide > * { position: relative; z-index: 2; }
+
+  /* ── Backgrounds ── */
+  .bg-dark-gradient {
+    background: linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);
+  }
+  .bg-teal-gradient {
+    background: linear-gradient(160deg, #003024 0%, #001a14 50%, #002a1f 100%);
+  }
+
+  /* ── Animations ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(164, 234, 73, 0.4); }
+    50% { box-shadow: 0 0 20px 4px rgba(164, 234, 73, 0.2); }
+  }
+  .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.6); opacity: 0.4; }
+  }
+  .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  /* ── Progress Bar ── */
+  #progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: #a4ea49;
+    z-index: 100;
+    transition: width 0.15s ease;
+  }
+
+  /* ── Nav Dots ── */
+  #nav-dots {
+    position: fixed;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+  @media (min-width: 1024px) { #nav-dots { display: flex; } }
+  .nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .nav-dot.active {
+    background: #a4ea49;
+    transform: scale(1.4);
+  }
+
+  /* ── Pill badges ── */
+  .pill { display: inline-block; padding: 4px 14px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* ── Stagger delays ── */
+  .delay-1 { transition-delay: 0.1s !important; }
+  .delay-2 { transition-delay: 0.2s !important; }
+  .delay-3 { transition-delay: 0.3s !important; }
+  .delay-4 { transition-delay: 0.4s !important; }
+  .delay-5 { transition-delay: 0.5s !important; }
+  .delay-6 { transition-delay: 0.6s !important; }
+  .delay-7 { transition-delay: 0.7s !important; }
+
+  /* ── Code / Invoice ── */
+  .invoice-line { font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     NAVIGATION DOTS
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="nav-dots"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PROGRESS BAR
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="progress-bar" style="width:0%"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 01 — THE FORK IN THE ROAD (HOOK)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="1">
+  <div class="max-w-5xl mx-auto w-full text-center">
+
+    <!-- Logo -->
+    <div class="reveal mb-8">
+      <span class="text-white font-extrabold text-2xl tracking-tight">Unit<span class="text-brand-lime">Pay</span></span>
+    </div>
+
+    <!-- Headline -->
+    <div class="reveal delay-1 mb-4">
+      <h1 class="leading-tight">
+        <span class="text-brand-slate text-3xl md:text-4xl lg:text-[44px] font-bold">Seat-based pricing made you </span>
+        <span class="text-white text-3xl md:text-4xl lg:text-[44px] font-extrabold">$2M.</span>
+      </h1>
+      <h1 class="leading-tight mt-1">
+        <span class="text-white text-3xl md:text-4xl lg:text-[44px] font-bold">Usage-based will make you </span>
+        <span class="text-brand-lime text-4xl md:text-5xl lg:text-[56px] font-extrabold" style="text-shadow: 0 0 30px rgba(164,234,73,0.15);">$10M.</span>
+      </h1>
+    </div>
+
+    <!-- Subtext -->
+    <p class="reveal delay-2 text-brand-amber text-lg md:text-xl lg:text-2xl font-medium mb-10">If your billing can handle it.</p>
+
+    <!-- Fork Visual (SVG) -->
+    <div class="reveal delay-3 w-full max-w-4xl mx-auto">
+      <svg viewBox="0 0 1000 340" class="w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Grid lines -->
+        <line x1="0" y1="85" x2="1000" y2="85" stroke="#1f1f1f" stroke-width="1"/>
+        <line x1="0" y1="250" x2="1000" y2="250" stroke="#1f1f1f" stroke-width="1"/>
+
+        <!-- Y-axis labels -->
+        <text x="20" y="255" fill="#ffffff" font-family="Inter" font-size="13" font-weight="700">$2M</text>
+        <text x="20" y="90" fill="#a4ea49" font-family="Inter" font-size="13" font-weight="700">$10M</text>
+
+        <!-- Gap fill between paths -->
+        <path d="M400,210 Q500,210 600,215 L700,225 L800,235 L900,240 L950,245 L950,180 L900,120 L800,95 L700,100 L600,140 L500,175 Q450,195 400,210 Z" fill="url(#gapGrad)" opacity="0.5"/>
+        <defs>
+          <linearGradient id="gapGrad" x1="400" y1="100" x2="400" y2="260"><stop offset="0%" stop-color="#a4ea49" stop-opacity="0.06"/><stop offset="100%" stop-color="#a4ea49" stop-opacity="0.01"/></linearGradient>
+          <linearGradient id="greenLine" x1="400" y1="210" x2="950" y2="60"><stop offset="0%" stop-color="#a4ea49"/><stop offset="100%" stop-color="#a4ea49"/></linearGradient>
+        </defs>
+
+        <!-- Base curve (before fork) -->
+        <path d="M60,290 Q150,280 250,265 Q350,245 400,210" stroke="#ffffff" stroke-width="3" fill="none"/>
+        <!-- Base area fill -->
+        <path d="M60,290 Q150,280 250,265 Q350,245 400,210 L400,310 L60,310 Z" fill="url(#baseGrad)"/>
+        <defs><linearGradient id="baseGrad" x1="60" y1="210" x2="60" y2="310"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.05"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>
+
+        <!-- Path A — Seat-based (flat/declining, dashed gray) -->
+        <path d="M400,210 Q500,212 600,218 Q750,228 950,245" stroke="#6b7280" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity="0.6"/>
+        <text x="880" y="270" fill="#6b7280" font-family="Inter" font-size="12" font-weight="500" opacity="0.6">Seat-based</text>
+
+        <!-- Path B — Usage-based (exponential, green) -->
+        <path d="M400,210 Q500,180 600,140 Q700,100 800,80 Q900,60 950,50" stroke="#a4ea49" stroke-width="3" fill="none" style="filter: drop-shadow(0 0 8px rgba(164,234,73,0.3))"/>
+        <!-- Path B area fill -->
+        <path d="M400,210 Q500,180 600,140 Q700,100 800,80 Q900,60 950,50 L950,310 L400,310 Z" fill="url(#greenArea)"/>
+        <defs><linearGradient id="greenArea" x1="400" y1="50" x2="400" y2="310"><stop offset="0%" stop-color="#a4ea49" stop-opacity="0.08"/><stop offset="100%" stop-color="#a4ea49" stop-opacity="0"/></linearGradient></defs>
+
+        <!-- $10M label at peak -->
+        <text x="920" y="40" fill="#a4ea49" font-family="Inter" font-size="16" font-weight="800">$10M</text>
+
+        <!-- Fork point -->
+        <circle cx="400" cy="210" r="6" fill="#ffffff"/>
+        <circle cx="400" cy="210" r="12" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.3"/>
+
+        <!-- YOU ARE HERE label -->
+        <text x="400" y="310" fill="#ffffff" font-family="Inter" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0.1em">YOU ARE HERE</text>
+        <line x1="400" y1="295" x2="400" y2="222" stroke="#ffffff" stroke-width="1" opacity="0.4"/>
+        <polygon points="396,224 404,224 400,218" fill="#ffffff" opacity="0.4"/>
+
+        <!-- 5x revenue gap annotation -->
+        <text x="720" y="168" fill="#a4ea49" font-family="Inter" font-size="11" font-weight="500" opacity="0.6">5x revenue gap</text>
+        <line x1="710" y1="110" x2="710" y2="155" stroke="#a4ea49" stroke-width="1" opacity="0.3" marker-start="url(#arrowUp)" marker-end="url(#arrowDown)"/>
+        <line x1="710" y1="175" x2="710" y2="225" stroke="#a4ea49" stroke-width="1" opacity="0.3"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">01 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10">
+    <span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 02 — THE EVOLUTION TIMELINE (PROBLEM)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-teal-gradient" data-slide="2">
+  <div class="max-w-5xl mx-auto w-full text-center">
+
+    <!-- Headline -->
+    <div class="reveal mb-12 md:mb-16">
+      <h1 class="text-4xl md:text-5xl lg:text-[56px] font-extrabold leading-tight">
+        Your pricing <span class="text-brand-lime">evolved.</span>
+      </h1>
+      <h1 class="text-4xl md:text-5xl lg:text-[56px] font-extrabold leading-tight">
+        Your billing <span class="text-brand-danger">didn't.</span>
+      </h1>
+    </div>
+
+    <!-- Evolution Timeline -->
+    <div class="reveal delay-1 relative flex flex-col md:flex-row items-start md:items-start justify-center gap-6 md:gap-8 mb-8">
+
+      <!-- Timeline connector (hidden mobile, visible desktop) -->
+      <div class="hidden md:block absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[2px] bg-brand-lime/40" style="top: -16px;"></div>
+
+      <!-- Era 1 — 2020 -->
+      <div class="reveal delay-1 w-full md:w-48 opacity-60">
+        <div class="hidden md:flex justify-center mb-4 relative" style="margin-top: -24px;">
+          <div class="w-3 h-3 rounded-full bg-brand-slate"></div>
+        </div>
+        <div class="rounded-xl p-5 border border-brand-slate/20" style="background: #002a1f;">
+          <div class="text-brand-slate text-xs font-bold uppercase tracking-wider mb-3">2020</div>
+          <div class="text-brand-slate text-xl font-bold mb-1">$99/seat/mo</div>
+          <div class="text-brand-slate text-sm">— simple</div>
+          <div class="mt-3"><span class="pill bg-brand-slate/15 text-brand-slate">Simple</span></div>
+        </div>
+      </div>
+
+      <!-- Era 2 — 2023 -->
+      <div class="reveal delay-2 w-full md:w-56 opacity-80">
+        <div class="hidden md:flex justify-center mb-4 relative" style="margin-top: -24px;">
+          <div class="w-3 h-3 rounded-full bg-white"></div>
+        </div>
+        <div class="rounded-xl p-5 border border-white/20" style="background: #002a1f;">
+          <div class="text-white text-xs font-bold uppercase tracking-wider mb-3">2023</div>
+          <div class="text-white text-lg font-bold">$99/seat</div>
+          <div class="text-brand-amber text-base font-normal">+ API overages</div>
+          <div class="text-white/70 text-sm mt-1">— manageable</div>
+          <div class="mt-3"><span class="pill bg-brand-amber/15 text-brand-amber">Manageable</span></div>
+        </div>
+      </div>
+
+      <!-- Era 3 — 2026 -->
+      <div class="reveal delay-3 w-full md:w-72">
+        <div class="hidden md:flex justify-center mb-4 relative" style="margin-top: -24px;">
+          <div class="w-3 h-3 rounded-full bg-brand-lime"></div>
+        </div>
+        <div class="rounded-xl p-5 border border-brand-danger/30" style="background: #002a1f;">
+          <div class="text-brand-lime text-xs font-bold uppercase tracking-wider mb-3">2026</div>
+          <div class="space-y-1">
+            <div class="text-white text-base font-bold">Base fee</div>
+            <div class="text-white text-base font-bold">+ per-token</div>
+            <div class="text-white text-base font-bold">+ compute</div>
+            <div class="text-white text-base font-bold">+ seats</div>
+            <div class="text-white text-base font-bold">+ credits</div>
+            <div class="text-brand-danger text-base font-bold">+ enterprise custom</div>
+          </div>
+          <div class="text-brand-danger text-sm italic mt-2">— impossible with Stripe</div>
+          <div class="mt-3"><span class="pill bg-brand-danger/15 text-brand-danger">Impossible</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subtext -->
+    <div class="reveal delay-4 max-w-2xl mx-auto">
+      <p class="text-white/70 text-base md:text-lg leading-relaxed">
+        Hybrid pricing needs hybrid infrastructure.<br>
+        Bolting usage onto subscription tools is <span class="text-brand-danger font-medium">duct tape</span>, not architecture.
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">02 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 03 — PRICE TOO HIGH / PRICE TOO LOW (STAKES)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="3">
+  <div class="max-w-5xl mx-auto w-full text-center">
+
+    <!-- Headline -->
+    <div class="reveal mb-10 md:mb-12">
+      <h1 class="text-3xl md:text-4xl lg:text-[48px] font-bold leading-tight">
+        Get the migration <span class="text-brand-danger">wrong</span>
+      </h1>
+      <h1 class="text-3xl md:text-4xl lg:text-[48px] font-bold leading-tight">
+        and you lose <span class="text-brand-danger">both ways.</span>
+      </h1>
+    </div>
+
+    <!-- Risk Boxes -->
+    <div class="flex flex-col md:flex-row gap-6 md:gap-10 mb-10">
+
+      <!-- Risk A -->
+      <div class="reveal delay-1 flex-1 rounded-2xl p-6 md:p-8 border border-brand-danger/20" style="background: rgba(255,59,59,0.05);">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-brand-danger text-2xl">&#9650;</span>
+          <span class="text-brand-danger text-sm font-bold uppercase tracking-widest">Price Too High</span>
+        </div>
+        <p class="text-white text-lg md:text-xl text-left mb-3">
+          Enterprise customers see a <span class="text-brand-danger font-bold">40%</span> bill increase
+        </p>
+        <p class="text-white/50 text-sm md:text-base text-left mb-5">They start evaluating competitors immediately</p>
+        <div class="text-left">
+          <span class="pill bg-brand-danger/10 text-brand-danger text-xs">&rarr; CHURN</span>
+        </div>
+      </div>
+
+      <!-- Risk B -->
+      <div class="reveal delay-2 flex-1 rounded-2xl p-6 md:p-8 border border-brand-danger/20" style="background: rgba(255,59,59,0.05);">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-brand-danger text-2xl">&#9660;</span>
+          <span class="text-brand-danger text-sm font-bold uppercase tracking-widest">Price Too Low</span>
+        </div>
+        <p class="text-white text-lg md:text-xl text-left mb-3">
+          Power users consume <span class="text-brand-danger font-bold">10x</span> resources at flat rate
+        </p>
+        <p class="text-white/50 text-sm md:text-base text-left mb-5">Margins collapse invisibly — you find out quarterly</p>
+        <div class="text-left">
+          <span class="pill bg-brand-danger/10 text-brand-danger text-xs">&rarr; BLEED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution hint -->
+    <div class="reveal delay-3">
+      <p class="text-white text-xl md:text-2xl font-normal">The only way to get it right?</p>
+      <p class="text-brand-lime text-xl md:text-2xl font-extrabold mt-1">Simulate before you ship.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">03 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 04 — WHEN MIGRATIONS GO WRONG (CAUTIONARY TALES) ★ NEW
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="4">
+  <div class="max-w-4xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8">
+      <h1 class="text-3xl md:text-4xl lg:text-[44px] font-bold leading-tight">
+        Three Companies That Migrated Pricing.<br>
+        <span class="text-brand-danger">Two Got It Wrong.</span>
+      </h1>
+    </div>
+
+    <!-- Company A — Failure -->
+    <div class="reveal delay-1 mb-3 rounded-r-xl border border-brand-danger/15 p-5 md:p-6" style="background: rgba(255,59,59,0.03); border-left: 3px solid #ff3b3b;">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-brand-danger text-xl font-bold">&#10007;</span>
+        <span class="text-brand-danger text-sm font-bold uppercase tracking-wider">Big Bang Migration</span>
+      </div>
+      <p class="text-white text-sm md:text-base leading-relaxed mb-2">
+        "Switched all 400 customers to usage-based overnight.
+        <span class="text-brand-danger font-bold">23% churned</span> in the first month.
+        Revenue dropped <span class="text-brand-danger font-bold">31%</span>.
+        Took 6 months to recover."
+      </p>
+      <p class="text-white/50 text-xs md:text-sm font-medium">Root cause: No simulation. No gradual rollout.</p>
+    </div>
+
+    <!-- Company B — Failure -->
+    <div class="reveal delay-2 mb-3 rounded-r-xl border border-brand-danger/15 p-5 md:p-6" style="background: rgba(255,59,59,0.03); border-left: 3px solid #ff3b3b;">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-brand-danger text-xl font-bold">&#10007;</span>
+        <span class="text-brand-danger text-sm font-bold uppercase tracking-wider">Paralysis By Analysis</span>
+      </div>
+      <p class="text-white text-sm md:text-base leading-relaxed mb-2">
+        "Spent 8 months building internal pricing models.
+        By the time they launched, competitors had already captured the market.
+        Lost <span class="text-brand-danger font-bold">$2M</span> in opportunity cost."
+      </p>
+      <p class="text-white/50 text-xs md:text-sm font-medium">Root cause: No tool to simulate quickly.</p>
+    </div>
+
+    <!-- Company C — Success -->
+    <div class="reveal delay-3 mb-6 rounded-r-xl border border-brand-lime/15 p-5 md:p-6" style="background: rgba(164,234,73,0.03); border-left: 3px solid #a4ea49;">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-brand-lime text-xl font-bold">&#10003;</span>
+        <span class="text-brand-lime text-sm font-bold uppercase tracking-wider">Simulated, Piloted, Scaled</span>
+      </div>
+      <p class="text-white text-sm md:text-base leading-relaxed mb-2">
+        "Simulated 3 pricing models in Price Lab. Piloted with 10% of customers.
+        Validated results. Then rolled out to 100%.
+        <span class="text-brand-lime font-bold">Zero churn. +47% ARR.</span>"
+      </p>
+      <p class="text-white/50 text-xs md:text-sm font-medium">Root cause: Right tool. Right process.</p>
+    </div>
+
+    <!-- Takeaway -->
+    <div class="reveal delay-4 text-center">
+      <p class="text-white/70 text-base font-medium">
+        The difference isn't the migration. It's <span class="text-brand-lime font-bold">the tool.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">04 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 05 — WHAT OTHERS GOT WRONG (COMPETITOR LANDSCAPE)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="5">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        Every Billing Tool Was Built for <span class="text-brand-slate">One Era.</span><br>
+        Not <span class="text-brand-lime">the Transition.</span>
+      </h1>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="reveal delay-1 rounded-2xl border border-brand-border overflow-hidden mb-8" style="background: #0a0a0a;">
+      <!-- Header -->
+      <div class="grid grid-cols-3 text-xs font-bold uppercase tracking-wider text-white/50 border-b border-brand-border" style="background: #111111;">
+        <div class="py-3 px-4 md:px-6">Tool</div>
+        <div class="py-3 px-4 md:px-6">Built For</div>
+        <div class="py-3 px-4 md:px-6">Migration Support</div>
+      </div>
+      <!-- Stripe -->
+      <div class="grid grid-cols-3 border-b border-brand-border">
+        <div class="py-4 px-4 md:px-6 text-white font-medium text-sm md:text-base">Stripe Billing</div>
+        <div class="py-4 px-4 md:px-6 text-white/50 text-sm">Subscriptions only</div>
+        <div class="py-4 px-4 md:px-6 text-brand-danger text-sm font-bold flex items-center gap-2"><span>&#10007;</span> None</div>
+      </div>
+      <!-- Chargebee -->
+      <div class="grid grid-cols-3 border-b border-brand-border">
+        <div class="py-4 px-4 md:px-6 text-white font-medium text-sm md:text-base">Chargebee</div>
+        <div class="py-4 px-4 md:px-6 text-white/50 text-sm">Subscriptions + basic usage</div>
+        <div class="py-4 px-4 md:px-6 text-brand-danger text-sm font-bold flex items-center gap-2"><span>&#10007;</span> None</div>
+      </div>
+      <!-- Orb -->
+      <div class="grid grid-cols-3 border-b border-brand-border">
+        <div class="py-4 px-4 md:px-6 text-white font-medium text-sm md:text-base">Orb</div>
+        <div class="py-4 px-4 md:px-6 text-white/50 text-sm">Usage-based only</div>
+        <div class="py-4 px-4 md:px-6 text-brand-danger text-sm font-bold flex items-center gap-2"><span>&#10007;</span> No hybrid</div>
+      </div>
+      <!-- Metronome -->
+      <div class="grid grid-cols-3 border-b border-brand-border">
+        <div class="py-4 px-4 md:px-6 text-white font-medium text-sm md:text-base">Metronome</div>
+        <div class="py-4 px-4 md:px-6 text-white/50 text-sm">Usage-based metering</div>
+        <div class="py-4 px-4 md:px-6 text-brand-danger text-sm font-bold flex items-center gap-2"><span>&#10007;</span> No simulation</div>
+      </div>
+      <!-- UnitPay (highlighted) -->
+      <div class="grid grid-cols-3 border border-brand-lime/15" style="background: rgba(164,234,73,0.05);">
+        <div class="py-4 px-4 md:px-6 text-brand-lime font-bold text-sm md:text-base">UnitPay</div>
+        <div class="py-4 px-4 md:px-6 text-white font-medium text-sm">BOTH + the transition between them</div>
+        <div class="py-4 px-4 md:px-6 text-brand-lime text-sm font-bold flex items-center gap-2"><span>&#10003;</span> Full migration engine</div>
+      </div>
+    </div>
+
+    <!-- Gap Statement -->
+    <div class="reveal delay-2 max-w-3xl mx-auto rounded-r-xl p-5 md:p-6" style="background: #111111; border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+      <p class="text-white text-sm md:text-base font-medium leading-relaxed">
+        No one built a tool for the <span class="text-brand-lime font-bold">MIGRATION</span> itself.
+        They built for the destination.
+        UnitPay is the only platform built for the <span class="text-brand-lime font-bold">JOURNEY.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">05 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 06 — FOUR CAPABILITIES (SOLUTION)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-teal-gradient" data-slide="6">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Label -->
+    <div class="reveal mb-4">
+      <span class="pill bg-brand-lime text-[#003024]">The Bridge</span>
+    </div>
+
+    <!-- Headline -->
+    <div class="reveal delay-1 mb-10 md:mb-12">
+      <h1 class="text-3xl md:text-4xl lg:text-[48px] font-bold leading-tight">
+        Built for the pricing model
+      </h1>
+      <h1 class="text-3xl md:text-4xl lg:text-[48px] font-extrabold leading-tight text-brand-lime">
+        you're moving to.
+      </h1>
+      <p class="text-brand-slate text-xl md:text-2xl lg:text-[32px] font-normal mt-1">Not the one you're leaving.</p>
+    </div>
+
+    <!-- Three capability cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 mb-5">
+
+      <!-- Card 1 — Hybrid Billing -->
+      <div class="reveal delay-1 rounded-2xl p-6 border border-brand-lime/10" style="background: #002a1f;">
+        <!-- Icon -->
+        <svg class="w-7 h-7 text-brand-lime mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/></svg>
+        <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-3">Hybrid Billing</h3>
+        <p class="text-brand-mint text-sm md:text-base leading-relaxed mb-3">Seat + usage + credits in one plan. Launch any pricing model without rewriting code.</p>
+        <p class="text-white/40 text-xs">Supports: tiered, volume, package, graduated, prepaid, custom</p>
+      </div>
+
+      <!-- Card 2 — Pricing Simulation (STAR) -->
+      <div class="reveal delay-2 rounded-2xl p-6 border border-brand-lime/10" style="background: #002a1f;">
+        <svg class="w-7 h-7 text-brand-lime mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/><path d="M10 10l2 2 4-4"/></svg>
+        <div class="flex items-center gap-2 mb-3">
+          <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider">Pricing Simulation</h3>
+          <span class="text-[8px] font-bold uppercase bg-brand-lime text-[#003024] px-2 py-0.5 rounded-full">Unique</span>
+        </div>
+        <p class="text-brand-mint text-sm md:text-base leading-relaxed mb-3">Test new pricing on 12 months of historical data. See revenue impact by cohort before you deploy.</p>
+        <p class="text-brand-lime text-xs font-bold">No other billing platform offers pricing simulation</p>
+      </div>
+
+      <!-- Card 3 — Real-Time Margins -->
+      <div class="reveal delay-3 rounded-2xl p-6 border border-brand-lime/10" style="background: #002a1f;">
+        <svg class="w-7 h-7 text-brand-lime mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0v-6a1 1 0 011-1h2a1 1 0 011 1v6"/></svg>
+        <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-3">Real-Time Margins</h3>
+        <p class="text-brand-mint text-sm md:text-base leading-relaxed mb-3">Per-customer, per-feature, per-API-call. Know your margins before your board does.</p>
+        <p class="text-white/40 text-xs">Cost attribution across LLM, compute, storage, bandwidth</p>
+      </div>
+    </div>
+
+    <!-- Card 4 — Full width -->
+    <div class="reveal delay-4 rounded-xl p-5 md:p-6 border border-brand-lime/10 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-5" style="background: #002a1f;">
+      <svg class="w-6 h-6 text-brand-lime flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <div>
+        <span class="text-brand-lime text-sm font-bold uppercase tracking-wider">10-Minute Setup</span>
+        <span class="text-brand-mint text-sm md:text-base ml-0 md:ml-3">Not a <span class="text-brand-danger line-through">3-month</span> migration project. Works alongside Stripe. No rip-and-replace.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">06 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 07 — THE PRICE LAB (PRODUCT #1)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="7">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Label -->
+    <div class="reveal mb-3"><span class="pill bg-brand-lime text-[#003024]">Price Lab</span></div>
+
+    <!-- Headline -->
+    <div class="reveal delay-1 mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        Test your new pricing before<br>
+        a <span class="text-brand-lime">single customer</span> sees it.
+      </h1>
+    </div>
+
+    <!-- Simulation Mockup -->
+    <div class="reveal delay-2 rounded-2xl border border-brand-border overflow-hidden shadow-2xl mb-6" style="background: #111111; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+
+      <!-- Window chrome -->
+      <div class="flex items-center justify-between px-4 md:px-6 py-3 border-b border-brand-border" style="background: #0a0a0a;">
+        <div class="flex items-center gap-3">
+          <div class="flex gap-1.5">
+            <div class="w-3 h-3 rounded-full bg-brand-danger"></div>
+            <div class="w-3 h-3 rounded-full bg-brand-amber"></div>
+            <div class="w-3 h-3 rounded-full bg-brand-lime"></div>
+          </div>
+          <span class="text-white text-xs md:text-sm font-medium ml-3">Price Lab — Simulation Results</span>
+        </div>
+        <div class="flex items-center gap-2 text-white/40 text-xs">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+          Data: Last 12 months
+        </div>
+      </div>
+
+      <!-- Side-by-side panels -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 p-4 md:p-8">
+
+        <!-- CURRENT Panel -->
+        <div class="rounded-xl p-5 md:p-6 border border-brand-border" style="background: #0a0a0a;">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="pill bg-brand-slate/15 text-brand-slate text-[10px]">Current</span>
+          </div>
+          <p class="text-white/50 text-sm font-medium mb-5">Per-Seat Pricing</p>
+          <div class="space-y-4">
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">ARR</span><div class="text-white text-3xl md:text-[32px] font-extrabold">$2.1M</div></div>
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">Avg Margin</span><div class="text-brand-amber text-xl md:text-2xl font-bold">45%</div></div>
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">At-Risk Accts</span><div class="text-brand-danger text-xl md:text-2xl font-bold">12</div></div>
+          </div>
+          <!-- Mini chart (flat) -->
+          <div class="mt-5 h-16 flex items-end gap-1">
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:60%"></div>
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:62%"></div>
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:58%"></div>
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:61%"></div>
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:59%"></div>
+            <div class="flex-1 bg-brand-slate/20 rounded-t" style="height:60%"></div>
+          </div>
+        </div>
+
+        <!-- PROPOSED Panel -->
+        <div class="rounded-xl p-5 md:p-6 border border-brand-lime/30" style="background: #0a0a0a;">
+          <div class="flex items-center justify-between mb-2">
+            <span class="pill bg-brand-lime text-[#003024] text-[10px]">Proposed</span>
+            <span class="pill bg-brand-lime text-[#003024] text-[10px]">+33% ARR</span>
+          </div>
+          <p class="text-brand-lime text-sm font-medium mb-5">Hybrid: Base + Usage</p>
+          <div class="space-y-4">
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">ARR</span><div class="text-brand-lime text-3xl md:text-[32px] font-extrabold">$2.8M</div></div>
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">Avg Margin</span><div class="text-brand-lime text-xl md:text-2xl font-bold">62%</div></div>
+            <div><span class="text-white/50 text-xs uppercase tracking-wider">At-Risk Accts</span><div class="text-brand-lime text-xl md:text-2xl font-bold">3</div></div>
+          </div>
+          <!-- Mini chart (growing) -->
+          <div class="mt-5 h-16 flex items-end gap-1">
+            <div class="flex-1 bg-brand-lime/30 rounded-t" style="height:40%"></div>
+            <div class="flex-1 bg-brand-lime/30 rounded-t" style="height:50%"></div>
+            <div class="flex-1 bg-brand-lime/30 rounded-t" style="height:62%"></div>
+            <div class="flex-1 bg-brand-lime/30 rounded-t" style="height:72%"></div>
+            <div class="flex-1 bg-brand-lime/40 rounded-t" style="height:85%"></div>
+            <div class="flex-1 bg-brand-lime/50 rounded-t" style="height:100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer inside mockup -->
+      <div class="px-6 md:px-8 pb-4 flex items-center justify-between text-white/30 text-xs">
+        <span>Simulation based on 12 months of actual usage data</span>
+        <span class="flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Last run: 2 minutes ago
+        </span>
+      </div>
+    </div>
+
+    <!-- Callout -->
+    <div class="reveal delay-3 text-center">
+      <p class="text-brand-lime text-lg md:text-xl font-extrabold">No other platform does this.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">07 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 08 — POST-MIGRATION ANALYTICS (PRODUCT #2)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="8">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-2">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        After the Migration: <span class="text-brand-lime">Full Revenue Clarity</span>
+      </h1>
+    </div>
+    <p class="reveal delay-1 text-center text-white/60 text-sm md:text-base mb-8">See subscription + usage + hybrid revenue in one view.</p>
+
+    <!-- Dashboard Mockup -->
+    <div class="reveal delay-2 rounded-2xl border border-brand-border overflow-hidden shadow-2xl mb-6" style="background: #0a0a0a; box-shadow: 0 16px 48px rgba(0,0,0,0.4);">
+
+      <!-- Dashboard header -->
+      <div class="flex items-center justify-between px-5 md:px-6 py-3 border-b border-brand-border" style="background: #111111;">
+        <span class="text-white text-xs md:text-sm font-medium">Revenue Analytics</span>
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5 text-brand-lime text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-brand-lime pulse-dot"></span> LIVE
+          </span>
+          <span class="text-white/40 text-xs">Q1 2026</span>
+        </div>
+      </div>
+
+      <div class="p-4 md:p-6 space-y-5">
+        <!-- Revenue Mix -->
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="h-4 rounded-full bg-brand-blue" style="width: 42%;"></div>
+            <span class="text-white text-xs md:text-sm whitespace-nowrap">Subscription <span class="text-brand-blue font-bold">$420K</span> <span class="text-white/40">(42%)</span></span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="h-4 rounded-full bg-brand-lime" style="width: 51%;"></div>
+            <span class="text-white text-xs md:text-sm whitespace-nowrap">Usage <span class="text-brand-lime font-bold">$510K</span> <span class="text-white/40">(51%)</span></span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="h-4 rounded-full bg-brand-amber" style="width: 7%;"></div>
+            <span class="text-white text-xs md:text-sm whitespace-nowrap">Hybrid/Overage <span class="text-brand-amber font-bold">$70K</span> <span class="text-white/40">(7%)</span></span>
+          </div>
+          <div class="pt-2 border-t border-brand-border">
+            <span class="text-white text-xl md:text-2xl font-extrabold">Total ARR: $1.0M</span>
+          </div>
+        </div>
+
+        <!-- Bottom row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Trend Chart -->
+          <div class="rounded-xl p-4 border border-brand-border" style="background: #111111;">
+            <span class="text-white/50 text-xs font-medium uppercase tracking-wider">ARR Growth</span>
+            <div class="mt-3 h-20 flex items-end gap-1.5">
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-brand-lime/20 rounded-t" style="height: 30%;"></div>
+                <span class="text-white/30 text-[10px]">Q1</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-brand-lime/25 rounded-t" style="height: 45%;"></div>
+                <span class="text-white/30 text-[10px]">Q2</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-brand-lime/35 rounded-t" style="height: 70%;"></div>
+                <span class="text-white/30 text-[10px]">Q3</span>
+              </div>
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-brand-lime/50 rounded-t" style="height: 100%;"></div>
+                <span class="text-white/30 text-[10px]">Q4</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Migration Tracker -->
+          <div class="rounded-xl p-4 border border-brand-border" style="background: #111111;">
+            <span class="text-white/50 text-xs font-medium uppercase tracking-wider">Migration Tracker</span>
+            <div class="mt-3 space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1"><span class="text-white font-medium">Migrated</span><span class="text-brand-lime font-bold">78%</span></div>
+                <div class="h-3 rounded-full bg-brand-border overflow-hidden"><div class="h-full rounded-full bg-brand-lime" style="width:78%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1"><span class="text-white font-medium">Hybrid</span><span class="text-brand-amber font-bold">15%</span></div>
+                <div class="h-3 rounded-full bg-brand-border overflow-hidden"><div class="h-full rounded-full bg-brand-amber" style="width:15%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1"><span class="text-white font-medium">Legacy</span><span class="text-brand-slate font-bold">7%</span></div>
+                <div class="h-3 rounded-full bg-brand-border overflow-hidden"><div class="h-full rounded-full bg-brand-slate" style="width:7%"></div></div>
+              </div>
+              <p class="text-white/40 text-[11px] italic mt-1">7% still on legacy — projected done by Q2</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three callouts -->
+    <div class="reveal delay-3 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+      <div class="rounded-xl p-4 border border-brand-border" style="background: #111111;">
+        <p class="text-brand-lime text-xs font-bold uppercase tracking-wider mb-1">Unified View</p>
+        <p class="text-white/60 text-xs">Subscription + usage in one dashboard</p>
+      </div>
+      <div class="rounded-xl p-4 border border-brand-border" style="background: #111111;">
+        <p class="text-brand-lime text-xs font-bold uppercase tracking-wider mb-1">Revenue Tracking</p>
+        <p class="text-white/60 text-xs">Usage + hybrid revenue tracked separately</p>
+      </div>
+      <div class="rounded-xl p-4 border border-brand-border" style="background: #111111;">
+        <p class="text-brand-lime text-xs font-bold uppercase tracking-wider mb-1">Per Customer</p>
+        <p class="text-white/60 text-xs">Migration progress tracked per customer</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">08 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 09 — HYBRID BILLING FLEXIBILITY (PRODUCT #3) ★ NEW
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="9">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        <span class="text-brand-lime">Any</span> Pricing Model. One Platform.
+      </h1>
+    </div>
+
+    <!-- 6 Pricing Model Cards — 3x2 Grid -->
+    <div class="reveal delay-1 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-4">
+
+      <!-- Flat -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Flat</span>
+        <p class="text-white text-sm mt-2">$99/mo<br>per seat</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+
+      <!-- Tiered -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Tiered</span>
+        <p class="text-white text-sm mt-2">$99 &rarr; $199<br>&rarr; $499</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+
+      <!-- Usage -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Usage</span>
+        <p class="text-white text-sm mt-2">$0.03/<br>token</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+
+      <!-- Hybrid -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Hybrid</span>
+        <p class="text-white text-sm mt-2">$99/mo +<br>$0.03/token</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+
+      <!-- Committed -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Committed</span>
+        <p class="text-white text-sm mt-2">$10K/year<br>prepaid credits</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+
+      <!-- Outcome -->
+      <div class="rounded-xl p-4 border border-brand-lime/15 relative" style="background: rgba(164,234,73,0.04);">
+        <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">Outcome</span>
+        <p class="text-white text-sm mt-2">2% of<br>revenue generated</p>
+        <span class="text-brand-lime text-lg absolute bottom-3 right-4">&#10003;</span>
+      </div>
+    </div>
+
+    <!-- Tagline -->
+    <p class="reveal delay-2 text-center text-brand-lime text-base md:text-lg font-bold mb-6">All 6 models. &nbsp;Mix and match. &nbsp;One invoice.</p>
+
+    <!-- Example Invoice -->
+    <div class="reveal delay-3 rounded-xl p-5 md:p-6 border border-brand-border max-w-2xl mx-auto" style="background: #111111;">
+      <p class="text-white/60 text-xs font-bold uppercase tracking-wider mb-4">Example: Customer X's Invoice</p>
+      <div class="space-y-2 invoice-line text-sm">
+        <div class="flex justify-between">
+          <span class="text-white/70">Platform fee (flat)</span>
+          <span class="text-white font-medium">$299/month</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/70">API usage (metered)</span>
+          <span class="text-white font-medium">$1,247 <span class="text-white/40 text-xs">(41,567 calls)</span></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/70">Overage (above committed)</span>
+          <span class="text-white font-medium">$89 <span class="text-white/40 text-xs">(2,967 extra)</span></span>
+        </div>
+        <div class="border-t border-dashed border-brand-lime/40 my-3"></div>
+        <div class="flex justify-between">
+          <span class="text-brand-lime font-bold text-base font-inter">Total</span>
+          <span class="text-brand-lime font-bold text-lg font-inter">$1,635</span>
+        </div>
+      </div>
+      <p class="text-brand-lime text-xs font-medium mt-4">One invoice. Three pricing models. Auto-calculated.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">09 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 10 — A REAL MIGRATION STORY (CUSTOMER STORY)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="10">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8 md:mb-10">
+      <h1 class="text-2xl md:text-3xl lg:text-[40px] font-bold leading-tight">
+        They Migrated 200 Customers to Usage-Based Pricing.<br>
+        <span class="text-brand-lime">Without Losing a Single One.</span>
+      </h1>
+    </div>
+
+    <!-- Four Phase Cards -->
+    <div class="reveal delay-1 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+      <!-- Phase 1 — Simulate -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-slate/20" style="background: rgba(107,114,128,0.05);">
+        <span class="text-brand-slate text-[10px] font-bold uppercase tracking-wider">Phase 1</span>
+        <h3 class="text-white text-base md:text-lg font-bold mt-2">Simulate</h3>
+        <p class="text-white/70 text-xs md:text-sm mt-2">Ran pricing simulation in Price Lab</p>
+        <p class="text-white/40 text-xs italic mt-3">"3 days"</p>
+      </div>
+      <!-- Phase 2 — Pilot -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-amber/20" style="background: rgba(245,166,35,0.05);">
+        <span class="text-brand-amber text-[10px] font-bold uppercase tracking-wider">Phase 2</span>
+        <h3 class="text-white text-base md:text-lg font-bold mt-2">Pilot</h3>
+        <p class="text-white/70 text-xs md:text-sm mt-2">Migrated 10% of customers</p>
+        <p class="text-white/40 text-xs italic mt-3">"2 weeks"</p>
+      </div>
+      <!-- Phase 3 — Migrate -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-blue/20" style="background: rgba(59,130,246,0.05);">
+        <span class="text-brand-blue text-[10px] font-bold uppercase tracking-wider">Phase 3</span>
+        <h3 class="text-white text-base md:text-lg font-bold mt-2">Migrate</h3>
+        <p class="text-white/70 text-xs md:text-sm mt-2">Rolled out to remaining 90%</p>
+        <p class="text-white/40 text-xs italic mt-3">"4 weeks"</p>
+      </div>
+      <!-- Result -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-lime/20" style="background: rgba(164,234,73,0.05);">
+        <span class="text-brand-lime text-[10px] font-bold uppercase tracking-wider">Result</span>
+        <h3 class="text-white text-base md:text-lg font-bold mt-2">Thrive</h3>
+        <p class="text-brand-lime text-xs md:text-sm font-bold mt-2">+47% ARR<br>0% churn</p>
+        <p class="text-white/40 text-xs italic mt-3">"Month 3"</p>
+      </div>
+    </div>
+
+    <!-- Timeline connector -->
+    <div class="reveal delay-2 hidden md:flex items-center justify-center gap-0 max-w-3xl mx-auto mb-8 px-8">
+      <div class="w-3 h-3 rounded-full bg-brand-lime flex-shrink-0"></div>
+      <div class="flex-1 h-[3px] bg-brand-lime/40"></div>
+      <div class="w-3 h-3 rounded-full bg-brand-lime flex-shrink-0"></div>
+      <div class="flex-1 h-[3px] bg-brand-lime/40"></div>
+      <div class="w-3 h-3 rounded-full bg-brand-lime flex-shrink-0"></div>
+      <div class="flex-1 h-[3px] bg-brand-lime/40"></div>
+      <div class="w-3 h-3 rounded-full bg-brand-lime flex-shrink-0"></div>
+    </div>
+
+    <!-- Quote -->
+    <div class="reveal delay-3 max-w-3xl mx-auto rounded-r-xl p-5 md:p-6 mb-6" style="background: #111111; border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+      <p class="text-white text-sm md:text-base leading-relaxed italic">
+        "We used to think pricing migration meant losing customers. UnitPay's simulation showed us exactly what would happen before we changed a single price.
+        <span class="text-brand-lime font-bold not-italic">Zero surprises.</span>"
+      </p>
+      <p class="text-white/40 text-xs mt-3">— VP Engineering, Series B Dev Tools Company</p>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="reveal delay-4 grid grid-cols-3 gap-3 md:gap-4 max-w-xl mx-auto text-center">
+      <div class="rounded-xl p-3 md:p-4 border border-brand-border" style="background: #111111;">
+        <div class="text-brand-lime text-2xl md:text-3xl font-extrabold">+47%</div>
+        <div class="text-white/50 text-[11px] mt-1">ARR increase</div>
+      </div>
+      <div class="rounded-xl p-3 md:p-4 border border-brand-border" style="background: #111111;">
+        <div class="text-brand-lime text-2xl md:text-3xl font-extrabold">0%</div>
+        <div class="text-white/50 text-[11px] mt-1">churn during migration</div>
+      </div>
+      <div class="rounded-xl p-3 md:p-4 border border-brand-border" style="background: #111111;">
+        <div class="text-brand-lime text-2xl md:text-3xl font-extrabold">6 wks</div>
+        <div class="text-white/50 text-[11px] mt-1">total migration time</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">10 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 11 — TRACTION & MIGRATION JOURNEY
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-teal-gradient" data-slide="11">
+  <div class="max-w-5xl mx-auto w-full text-center">
+
+    <!-- Headline -->
+    <div class="reveal mb-10 md:mb-14">
+      <h1 class="text-3xl md:text-4xl lg:text-[44px] font-bold leading-tight">
+        Early movers are already<br>
+        <span class="text-brand-lime">migrating</span> on UnitPay.
+      </h1>
+    </div>
+
+    <!-- Metric Row -->
+    <div class="reveal delay-1 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 mb-10 md:mb-14">
+      <div class="md:border-r md:border-brand-lime/15 px-4 py-2">
+        <div class="text-brand-lime text-5xl md:text-6xl lg:text-7xl font-extrabold">3</div>
+        <div class="text-white text-sm md:text-base font-medium mt-1">companies live</div>
+        <div class="text-white/40 text-xs mt-1">hybrid pricing models active</div>
+      </div>
+      <div class="md:border-r md:border-brand-lime/15 px-4 py-2">
+        <div class="text-brand-lime text-5xl md:text-6xl lg:text-7xl font-extrabold">10</div>
+        <div class="text-white text-sm md:text-base font-medium mt-1">in migration queue</div>
+        <div class="text-white/40 text-xs mt-1">moving from seat-based to usage-based</div>
+      </div>
+      <div class="md:border-r md:border-brand-lime/15 px-4 py-2">
+        <div class="text-brand-lime text-5xl md:text-6xl lg:text-7xl font-extrabold">$200K</div>
+        <div class="text-white text-sm md:text-base font-medium mt-1">raised</div>
+        <div class="text-white/40 text-xs mt-1">purpose-built for the pricing transition</div>
+      </div>
+      <div class="px-4 py-2">
+        <div class="text-brand-lime text-5xl md:text-6xl lg:text-7xl font-extrabold">&lt;10</div>
+        <div class="text-white text-sm md:text-base font-medium mt-1">minutes to go live</div>
+        <div class="text-white/40 text-xs mt-1">vs. weeks with legacy platforms</div>
+      </div>
+    </div>
+
+    <!-- Migration Journey -->
+    <div class="reveal delay-2 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0 mb-8">
+      <!-- Stage 1 -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-slate/20 w-full md:w-56" style="background: #1a1a1a;">
+        <div class="text-brand-slate text-sm font-medium">Stripe Only</div>
+        <div class="text-white/40 text-xs mt-1">(your old stack)</div>
+      </div>
+      <!-- Arrow -->
+      <div class="hidden md:block text-brand-lime/40 px-3">
+        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="md:hidden text-brand-lime/40">
+        <svg class="w-6 h-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <!-- Stage 2 -->
+      <div class="rounded-xl p-4 md:p-5 border border-white/30 w-full md:w-56 relative" style="background: #1a1a1a;">
+        <div class="text-white text-sm font-medium">Stripe + UnitPay</div>
+        <div class="text-white/50 text-xs mt-1">(hybrid — today)</div>
+        <span class="absolute -top-3 right-3 text-[9px] font-bold uppercase tracking-wider text-white bg-white/10 px-2 py-0.5 rounded-full">You are here</span>
+      </div>
+      <!-- Arrow -->
+      <div class="hidden md:block text-brand-lime/40 px-3">
+        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="md:hidden text-brand-lime/40">
+        <svg class="w-6 h-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <!-- Stage 3 -->
+      <div class="rounded-xl p-4 md:p-5 border border-brand-lime/30 w-full md:w-56" style="background: #1a1a1a;">
+        <div class="text-brand-lime text-sm font-bold" style="text-shadow: 0 0 20px rgba(164,234,73,0.15);">UnitPay</div>
+        <div class="text-brand-lime/60 text-xs mt-1">(full stack)</div>
+      </div>
+    </div>
+
+    <!-- Closing -->
+    <p class="reveal delay-3 text-brand-mint/70 text-base md:text-lg">We're purpose-built for this transition. Not retrofitted.</p>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">11 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 12 — THE SAFETY NET (RISK MITIGATION)
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="12">
+  <div class="max-w-4xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        We Built <span class="text-brand-lime">Every Safety Net</span><br> a CFO Could Ask For
+      </h1>
+    </div>
+
+    <!-- Safety Cards -->
+    <div class="space-y-3 mb-8">
+      <!-- Safety 1 -->
+      <div class="reveal delay-1 rounded-r-xl p-5 md:p-6 border border-brand-lime/10" style="background: rgba(164,234,73,0.03); border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-brand-lime flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <div>
+            <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-2">Simulate Before You Migrate</h3>
+            <p class="text-white/70 text-sm leading-relaxed">Run your entire customer base through the Price Lab before changing a single invoice. See exact revenue impact per customer.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety 2 -->
+      <div class="reveal delay-2 rounded-r-xl p-5 md:p-6 border border-brand-lime/10" style="background: rgba(164,234,73,0.03); border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-brand-lime flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <div>
+            <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-2">Migrate In Waves</h3>
+            <p class="text-white/70 text-sm leading-relaxed">Start with 10% of customers. Validate results. Then expand. Never a big-bang migration.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety 3 -->
+      <div class="reveal delay-3 rounded-r-xl p-5 md:p-6 border border-brand-lime/10" style="background: rgba(164,234,73,0.03); border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-brand-lime flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <div>
+            <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-2">Roll Back Any Time</h3>
+            <p class="text-white/70 text-sm leading-relaxed">Keep your old pricing model as a fallback. One click to revert any customer to their previous plan.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety 4 -->
+      <div class="reveal delay-4 rounded-r-xl p-5 md:p-6 border border-brand-lime/10" style="background: rgba(164,234,73,0.03); border-left: 3px solid #a4ea49; border-radius: 0 12px 12px 0;">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-brand-lime flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <div>
+            <h3 class="text-brand-lime text-sm font-bold uppercase tracking-wider mb-2">Real-Time Monitoring</h3>
+            <p class="text-white/70 text-sm leading-relaxed">Auto-alerts if churn spikes, margin drops, or usage patterns shift unexpectedly during migration.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing -->
+    <div class="reveal delay-5 text-center">
+      <p class="text-white text-base font-medium">
+        The question isn't whether you can afford to migrate.<br>
+        It's whether you can <span class="text-brand-lime font-bold">afford not to.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">12 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 13 — THE FUTURE OF PRICING (VISION) ★ NEW
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="13">
+  <div class="max-w-5xl mx-auto w-full">
+
+    <!-- Headline -->
+    <div class="reveal text-center mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-4xl lg:text-[40px] font-bold leading-tight">
+        Pricing Is <span class="text-brand-lime">Evolving.</span><br>Your Platform Should Too.
+      </h1>
+    </div>
+
+    <!-- Pricing Evolution Timeline -->
+    <div class="reveal delay-1 mb-8 md:mb-10">
+      <!-- Timeline bar -->
+      <div class="relative max-w-3xl mx-auto">
+        <!-- Line -->
+        <div class="hidden md:block absolute top-3 left-[8%] right-[8%] h-[3px] bg-brand-lime/30 rounded-full"></div>
+
+        <!-- Nodes -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0">
+
+          <!-- Static — 2020 -->
+          <div class="text-center relative">
+            <div class="hidden md:flex justify-center mb-3">
+              <div class="w-6 h-6 rounded-full bg-brand-slate border-2 border-brand-slate/50 z-10 relative"></div>
+            </div>
+            <span class="text-brand-slate text-[11px] font-bold uppercase tracking-wider">2020</span>
+            <h3 class="text-brand-slate text-base font-bold mt-1">Static</h3>
+            <p class="text-white/40 text-xs mt-1">"One price<br>for everyone"</p>
+          </div>
+
+          <!-- Usage-Based — 2024 -->
+          <div class="text-center relative">
+            <div class="hidden md:flex justify-center mb-3">
+              <div class="w-6 h-6 rounded-full bg-brand-amber border-2 border-brand-amber/50 z-10 relative"></div>
+            </div>
+            <span class="text-brand-amber text-[11px] font-bold uppercase tracking-wider">2024</span>
+            <h3 class="text-brand-amber text-base font-bold mt-1">Usage-Based</h3>
+            <p class="text-white/40 text-xs mt-1">"Pay per<br>unit"</p>
+          </div>
+
+          <!-- Hybrid — 2026 (YOU ARE HERE) -->
+          <div class="text-center relative">
+            <div class="hidden md:flex justify-center mb-3">
+              <div class="relative z-10">
+                <div class="w-6 h-6 rounded-full bg-brand-lime"></div>
+                <div class="absolute inset-0 w-6 h-6 rounded-full bg-brand-lime pulse-dot"></div>
+              </div>
+            </div>
+            <span class="text-brand-lime text-[11px] font-bold uppercase tracking-wider">2026</span>
+            <h3 class="text-brand-lime text-base font-bold mt-1">Hybrid</h3>
+            <p class="text-white/60 text-xs mt-1">"Mix models<br>per customer"</p>
+            <span class="inline-block mt-2 text-[9px] font-bold uppercase tracking-wider text-brand-lime bg-brand-lime/10 px-2 py-0.5 rounded-full">You are here</span>
+          </div>
+
+          <!-- Autonomous — 2028 -->
+          <div class="text-center relative">
+            <div class="hidden md:flex justify-center mb-3">
+              <div class="w-6 h-6 rounded-full bg-brand-lime/60 border-2 border-brand-lime/30 z-10 relative" style="box-shadow: 0 0 12px rgba(164,234,73,0.2);"></div>
+            </div>
+            <span class="text-brand-lime/80 text-[11px] font-bold uppercase tracking-wider">2028</span>
+            <h3 class="text-brand-lime/80 text-base font-bold mt-1">Autonomous</h3>
+            <p class="text-white/40 text-xs mt-1">"AI sets optimal<br>prices per customer"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vision Card -->
+    <div class="reveal delay-2 max-w-2xl mx-auto rounded-xl p-6 md:p-8 border border-brand-lime/15" style="background: #111111;">
+      <!-- TODAY -->
+      <div class="mb-5">
+        <span class="text-white/50 text-xs font-bold uppercase tracking-wider">Today</span>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-brand-lime font-bold">&#10003;</span>
+            <span class="text-brand-lime text-sm font-medium">Simulate any pricing model</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-brand-lime font-bold">&#10003;</span>
+            <span class="text-brand-lime text-sm font-medium">Migrate without churn</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-brand-lime font-bold">&#10003;</span>
+            <span class="text-brand-lime text-sm font-medium">Real-time margin visibility</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-dashed border-brand-border my-5"></div>
+
+      <!-- NEXT -->
+      <div class="mb-5">
+        <span class="text-white/50 text-xs font-bold uppercase tracking-wider">Next</span>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-white/40">&#9675;</span>
+            <span class="text-white text-sm">AI-suggested pricing per customer segment</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-white/40">&#9675;</span>
+            <span class="text-white text-sm">Dynamic pricing that adjusts to usage patterns</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-white/40">&#9675;</span>
+            <span class="text-white text-sm">Automated pricing experiments (A/B test prices)</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-brand-lime text-base font-bold">The platform that grows with your pricing maturity.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">13 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 14 — CTA
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="slide bg-dark-gradient" data-slide="14" style="background: radial-gradient(ellipse at center, rgba(164,234,73,0.05) 0%, transparent 60%), linear-gradient(160deg, #0a0a0a 0%, #041a14 40%, #0a0a0a 100%);">
+  <div class="max-w-4xl mx-auto w-full text-center">
+
+    <!-- Headline -->
+    <div class="reveal mb-6">
+      <h1 class="text-4xl md:text-5xl lg:text-[56px] font-extrabold leading-tight">
+        Run your pricing migration<br>
+        <span class="text-brand-lime">simulation</span> — free.
+      </h1>
+    </div>
+
+    <!-- Value Props -->
+    <div class="reveal delay-1 space-y-3 mb-8 max-w-lg mx-auto">
+      <div class="flex items-center gap-3 justify-center">
+        <span class="text-brand-lime font-bold">&#10003;</span>
+        <span class="text-white text-base md:text-lg">Upload your current pricing model</span>
+      </div>
+      <div class="flex items-center gap-3 justify-center">
+        <span class="text-brand-lime font-bold">&#10003;</span>
+        <span class="text-white text-base md:text-lg">We simulate usage-based on <span class="text-brand-lime font-medium">YOUR</span> revenue</span>
+      </div>
+      <div class="flex items-center gap-3 justify-center">
+        <span class="text-brand-lime font-bold">&#10003;</span>
+        <span class="text-white text-base md:text-lg">See the impact before you change a <span class="text-brand-lime font-medium">single invoice</span></span>
+      </div>
+    </div>
+
+    <!-- Mini Fork Callback -->
+    <div class="reveal delay-2 mb-8 max-w-md mx-auto">
+      <svg viewBox="0 0 400 100" class="w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Base curve -->
+        <path d="M30,80 Q80,75 130,68 Q150,64 160,58" stroke="#ffffff" stroke-width="2" fill="none" opacity="0.3"/>
+        <!-- Path A (faded) -->
+        <path d="M160,58 Q200,56 260,58 Q320,60 380,62" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.2"/>
+        <!-- Path B (highlighted) -->
+        <path d="M160,58 Q220,40 280,25 Q340,12 380,8" stroke="#a4ea49" stroke-width="2.5" style="filter: drop-shadow(0 0 6px rgba(164,234,73,0.4))"/>
+        <!-- Area fill under path B -->
+        <path d="M160,58 Q220,40 280,25 Q340,12 380,8 L380,90 L160,90 Z" fill="url(#miniForkGrad)"/>
+        <defs><linearGradient id="miniForkGrad" x1="160" y1="8" x2="160" y2="90"><stop offset="0%" stop-color="#a4ea49" stop-opacity="0.08"/><stop offset="100%" stop-color="#a4ea49" stop-opacity="0"/></linearGradient></defs>
+        <!-- Fork point -->
+        <circle cx="160" cy="58" r="4" fill="#a4ea49"/>
+      </svg>
+      <p class="text-brand-lime text-sm font-medium mt-2">You've seen both paths. Pick the right one.</p>
+    </div>
+
+    <!-- CTA Button -->
+    <div class="reveal delay-3 mb-4">
+      <button class="bg-brand-lime text-[#003024] text-lg font-bold px-10 py-4 rounded-xl pulse-glow hover:brightness-110 transition-all" style="box-shadow: 0 4px 24px rgba(164,234,73,0.3);">
+        Start Free Trial &rarr;
+      </button>
+    </div>
+    <p class="reveal delay-4 text-white/40 text-sm mb-8">Free tier. No credit card. See your simulation in 10 min.</p>
+
+    <!-- QR + Contact -->
+    <div class="reveal delay-5 flex flex-col md:flex-row items-center justify-center gap-6 mb-6">
+      <!-- QR Placeholder -->
+      <div class="w-28 h-28 rounded-xl border border-brand-border flex items-center justify-center" style="background: #111111;">
+        <div class="grid grid-cols-5 gap-[3px] p-3">
+          <!-- QR pattern placeholder -->
+          <div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-border rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div>
+          <div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-border rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-border rounded-sm"></div>
+          <div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-lime rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div>
+          <div class="w-2 h-2 bg-brand-border rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-border rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div>
+          <div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-brand-border rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div><div class="w-2 h-2 bg-white rounded-sm"></div>
+        </div>
+      </div>
+      <!-- Contact -->
+      <div class="text-left">
+        <p class="text-white text-sm font-medium">useunitpay.com</p>
+        <p class="text-white/50 text-sm">hello@useunitpay.com</p>
+      </div>
+    </div>
+    <p class="reveal delay-5 text-brand-lime text-xs font-medium mb-8">Your pricing model, simulated. Scan to see both paths.</p>
+
+    <!-- Logo -->
+    <div class="reveal delay-6">
+      <span class="text-white font-extrabold text-3xl tracking-tight">Unit<span class="text-brand-lime">Pay</span></span>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="absolute bottom-6 left-6 md:left-8 text-white/40 text-xs font-mono z-10">14 / 14</div>
+  <div class="absolute bottom-6 right-6 md:right-8 z-10"><span class="text-white/30 text-xs font-bold tracking-tight">U<span class="text-brand-lime/40">P</span></span></div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS — Navigation, Progress, IntersectionObserver
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  const TOTAL_SLIDES = 14;
+
+  // ── Build Nav Dots ──
+  const navDotsContainer = document.getElementById('nav-dots');
+  for (let i = 1; i <= TOTAL_SLIDES; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 1 ? ' active' : '');
+    dot.dataset.slide = i;
+    dot.addEventListener('click', () => {
+      const target = document.querySelector(`[data-slide="${i}"]`);
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+    navDotsContainer.appendChild(dot);
+  }
+
+  // ── Progress Bar ──
+  const progressBar = document.getElementById('progress-bar');
+  function updateProgress() {
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    progressBar.style.width = progress + '%';
+  }
+
+  // ── Active Slide Detection ──
+  function updateActiveDot() {
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.nav-dot');
+    let activeIndex = 0;
+    const viewportCenter = window.innerHeight / 2;
+
+    slides.forEach((slide, index) => {
+      const rect = slide.getBoundingClientRect();
+      if (rect.top <= viewportCenter && rect.bottom > viewportCenter) {
+        activeIndex = index;
+      }
+    });
+
+    dots.forEach((dot, index) => {
+      dot.classList.toggle('active', index === activeIndex);
+    });
+  }
+
+  // ── Scroll Events (debounced) ──
+  let scrollTicking = false;
+  window.addEventListener('scroll', () => {
+    if (!scrollTicking) {
+      requestAnimationFrame(() => {
+        updateProgress();
+        updateActiveDot();
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
+  }, { passive: true });
+
+  // ── IntersectionObserver for Reveal Animations ──
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  });
+
+  document.querySelectorAll('.reveal').forEach(el => {
+    revealObserver.observe(el);
+  });
+
+  // Initial calls
+  updateProgress();
+  updateActiveDot();
+})();
+</script>
+
+</body>
+</html>
